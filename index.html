@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MayBridge Care Collective | Hampton, VA</title>
+  <meta name="description" content="MayBridge Care Collective provides premium care support in Hampton, Virginia. Bridging Quality and Excellence in Care." />
+
+  <style>
+    :root {
+      --deep:#062B25;
+      --deep2:#0B3A32;
+      --teal:#0F5C5A;
+      --gold:#C89B35;
+      --gold2:#E4C46A;
+      --cream:#F7F1E5;
+      --ivory:#FFFDF7;
+      --olive:#596B2F;
+      --text:#173F38;
+      --muted:#5D6C68;
+    }
+
+    * { box-sizing:border-box; }
+
+    html { scroll-behavior:smooth; }
+
+    body {
+      margin:0;
+      font-family: "Arial", sans-serif;
+      background:var(--cream);
+      color:var(--text);
+    }
+
+    h1,h2,h3 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight:500;
+      margin:0;
+    }
+
+    p { line-height:1.65; }
+
+    a { text-decoration:none; color:inherit; }
+
+    .topbar {
+      background:linear-gradient(90deg, #041F1B, #0A3B33, #041F1B);
+      color:white;
+      border-bottom:1px solid var(--gold);
+      position:sticky;
+      top:0;
+      z-index:50;
+    }
+
+    .nav {
+      max-width:1280px;
+      margin:auto;
+      height:92px;
+      padding:0 36px;
+      display:grid;
+      grid-template-columns:1fr auto 1fr;
+      align-items:center;
+      gap:24px;
+    }
+
+    .nav-left,.nav-right {
+      display:flex;
+      gap:30px;
+      align-items:center;
+      font-size:13px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
+
+    .nav-right { justify-content:flex-end; }
+
+    .nav a {
+      color:white;
+      opacity:.92;
+      transition:.2s ease;
+    }
+
+    .nav a:hover { color:var(--gold2); }
+
+    .nav-logo {
+      height:88px;
+      width:220px;
+      object-fit:contain;
+      filter: drop-shadow(0 8px 18px rgba(0,0,0,.35));
+    }
+
+    .nav-cta {
+      background:linear-gradient(135deg, var(--gold), var(--gold2));
+      color:#0A2C27 !important;
+      padding:13px 22px;
+      border-radius:5px;
+      font-weight:bold;
+      box-shadow:0 10px 25px rgba(0,0,0,.25);
+    }
+
+    .hero {
+      min-height:690px;
+      position:relative;
+      display:flex;
+      align-items:center;
+      overflow:hidden;
+      background:
+        linear-gradient(90deg, rgba(6,43,37,.96) 0%, rgba(6,43,37,.86) 38%, rgba(6,43,37,.55) 66%, rgba(6,43,37,.82) 100%),
+        radial-gradient(circle at 72% 28%, rgba(228,196,106,.38), transparent 22%),
+        linear-gradient(135deg, #143f36 0%, #071f1b 100%);
+    }
+
+    .hero:before {
+      content:"";
+      position:absolute;
+      inset:0;
+      background:
+        linear-gradient(130deg, transparent 0 45%, rgba(255,255,255,.06) 46%, transparent 48%),
+        linear-gradient(132deg, transparent 0 50%, rgba(255,255,255,.08) 51%, transparent 53%),
+        linear-gradient(134deg, transparent 0 55%, rgba(255,255,255,.06) 56%, transparent 58%);
+      opacity:.65;
+    }
+
+    .hero:after {
+      content:"";
+      position:absolute;
+      right:5%;
+      top:17%;
+      width:390px;
+      height:390px;
+      border-radius:50%;
+      background:
+        radial-gradient(circle at 50% 38%, #f7f1e5 0 6%, transparent 7%),
+        radial-gradient(circle at 50% 40%, rgba(247,241,229,.28), transparent 42%),
+        linear-gradient(160deg, rgba(255,255,255,.18), rgba(255,255,255,.02));
+      border:1px solid rgba(228,196,106,.25);
+      box-shadow:0 0 80px rgba(228,196,106,.25);
+    }
+
+    .hero-inner {
+      max-width:1280px;
+      margin:auto;
+      width:100%;
+      padding:86px 48px;
+      position:relative;
+      z-index:2;
+      display:grid;
+      grid-template-columns:1.05fr .95fr;
+      gap:48px;
+      align-items:center;
+    }
+
+    .hero-copy {
+      color:white;
+      max-width:650px;
+    }
+
+    .hero-copy h1 {
+      font-size:68px;
+      line-height:1.04;
+      margin-bottom:22px;
+      text-shadow:0 12px 30px rgba(0,0,0,.35);
+    }
+
+    .hero-script {
+      font-family:Georgia, "Times New Roman", serif;
+      font-style:italic;
+      font-size:30px;
+      color:#F8E6B0;
+      margin:12px 0 16px;
+    }
+
+    .gold-line {
+      width:220px;
+      height:1px;
+      background:var(--gold);
+      margin:18px 0;
+      position:relative;
+    }
+
+    .gold-line:after {
+      content:"❤";
+      position:absolute;
+      color:var(--gold);
+      right:-26px;
+      top:-11px;
+      font-size:15px;
+    }
+
+    .hero-copy p {
+      font-size:18px;
+      color:rgba(255,255,255,.88);
+      max-width:510px;
+    }
+
+    .hero-buttons {
+      display:flex;
+      gap:18px;
+      margin-top:32px;
+      flex-wrap:wrap;
+    }
+
+    .btn {
+      display:inline-block;
+      border-radius:4px;
+      padding:15px 28px;
+      text-transform:uppercase;
+      letter-spacing:.12em;
+      font-size:13px;
+      font-weight:bold;
+      border:1px solid var(--gold);
+      transition:.2s ease;
+    }
+
+    .btn-primary {
+      background:var(--deep2);
+      color:white;
+      box-shadow:0 12px 25px rgba(0,0,0,.28);
+    }
+
+    .btn-gold {
+      background:linear-gradient(135deg, var(--gold), var(--gold2));
+      color:#0B312B;
+      box-shadow:0 12px 25px rgba(0,0,0,.28);
+    }
+
+    .hero-logo-card {
+      background:rgba(247,241,229,.92);
+      border:1px solid rgba(228,196,106,.45);
+      box-shadow:0 25px 80px rgba(0,0,0,.35);
+      border-radius:12px;
+      padding:28px;
+      backdrop-filter:blur(6px);
+      text-align:center;
+    }
+
+    .hero-logo-card img {
+      width:100%;
+      max-height:460px;
+      object-fit:contain;
+    }
+
+    .values-strip {
+      background:var(--ivory);
+      border-top:1px solid rgba(200,155,53,.45);
+      border-bottom:1px solid rgba(200,155,53,.45);
+    }
+
+    .values-inner {
+      max-width:1280px;
+      margin:auto;
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:0;
+      padding:24px 38px;
+    }
+
+    .value {
+      display:flex;
+      align-items:center;
+      gap:16px;
+      padding:10px 24px;
+      border-right:1px solid rgba(200,155,53,.45);
+    }
+
+    .value:last-child { border-right:0; }
+
+    .value-icon {
+      min-width:70px;
+      height:70px;
+      border:2px solid var(--gold);
+      border-radius:50%;
+      display:grid;
+      place-items:center;
+      color:var(--deep);
+      font-size:31px;
+      background:linear-gradient(135deg,#fff,#f5ead3);
+    }
+
+    .value h3 {
+      font-family:Arial, sans-serif;
+      font-size:15px;
+      text-transform:uppercase;
+      font-weight:800;
+      margin-bottom:3px;
+      color:var(--deep);
+    }
+
+    .value p {
+      margin:0;
+      color:#263b36;
+      font-size:14px;
+      line-height:1.45;
+    }
+
+    .section-dark {
+      background:
+        radial-gradient(circle at 90% 30%, rgba(200,155,53,.14), transparent 25%),
+        linear-gradient(180deg, #062B25, #031A17);
+      color:white;
+      padding:74px 40px 86px;
+    }
+
+    .section-title {
+      text-align:center;
+      max-width:820px;
+      margin:0 auto 40px;
+    }
+
+    .eyebrow {
+      color:var(--gold2);
+      text-transform:uppercase;
+      letter-spacing:.22em;
+      font-weight:bold;
+      font-size:14px;
+      margin-bottom:8px;
+    }
+
+    .section-title h2 {
+      font-size:42px;
+      margin-bottom:12px;
+    }
+
+    .section-title p {
+      color:rgba(255,255,255,.82);
+      margin:0;
+    }
+
+    .chapter-grid {
+      max-width:1280px;
+      margin:auto;
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:18px;
+    }
+
+    .chapter-card {
+      border:1px solid rgba(228,196,106,.78);
+      background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+      border-radius:8px;
+      overflow:hidden;
+      box-shadow:0 18px 50px rgba(0,0,0,.28);
+    }
+
+    .chapter-img {
+      height:170px;
+      background:
+        linear-gradient(135deg, rgba(6,43,37,.25), rgba(200,155,53,.2)),
+        radial-gradient(circle at 70% 30%, rgba(255,255,255,.32), transparent 22%),
+        linear-gradient(135deg, #997a36, #0f5c5a);
+      border-bottom:1px solid rgba(228,196,106,.78);
+    }
+
+    .chapter-img.legacy { background:linear-gradient(135deg,#b59b64,#0f5c5a); }
+    .chapter-img.living { background:linear-gradient(135deg,#5e7b48,#0f5c5a); }
+    .chapter-img.dod { background:linear-gradient(135deg,#6e1f1a,#0b3a32); }
+    .chapter-img.future { background:linear-gradient(135deg,#b08a38,#293d2a); }
+
+    .chapter-content {
+      padding:26px 24px 28px;
+      text-align:center;
+    }
+
+    .chapter-medallion {
+      width:78px;
+      height:78px;
+      background:#0A332D;
+      border:2px solid var(--gold);
+      border-radius:50%;
+      display:grid;
+      place-items:center;
+      margin:-66px auto 18px;
+      position:relative;
+      color:var(--gold2);
+      font-size:34px;
+      box-shadow:0 12px 25px rgba(0,0,0,.28);
+    }
+
+    .chapter-content h3 {
+      color:var(--gold2);
+      font-size:31px;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
+
+    .chapter-content h4 {
+      color:#F6E9C2;
+      margin:4px 0 15px;
+      font-family:Georgia, "Times New Roman", serif;
+      font-weight:400;
+      font-size:20px;
+    }
+
+    .chapter-content p {
+      color:rgba(255,255,255,.85);
+      font-size:15px;
+      min-height:76px;
+    }
+
+    .chapter-content a {
+      display:inline-block;
+      border:1px solid var(--gold);
+      color:var(--gold2);
+      padding:11px 28px;
+      border-radius:4px;
+      text-transform:uppercase;
+      letter-spacing:.12em;
+      font-size:12px;
+      margin-top:16px;
+    }
+
+    .split {
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      max-width:1280px;
+      margin:auto;
+      gap:28px;
+      padding:60px 40px;
+      align-items:stretch;
+    }
+
+    .tribute-box {
+      background:var(--ivory);
+      border:1px solid rgba(200,155,53,.4);
+      padding:48px;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      text-align:center;
+      min-height:430px;
+    }
+
+    .tribute-box .eyebrow { color:var(--gold); }
+
+    .tribute-box h2 {
+      font-size:46px;
+      color:var(--olive);
+      letter-spacing:.08em;
+    }
+
+    .tribute-dates {
+      font-size:18px;
+      color:#153e38;
+      margin:8px 0 20px;
+    }
+
+    .tribute-box p {
+      color:#364d48;
+      font-size:17px;
+    }
+
+    .tribute-script {
+      font-style:italic;
+      color:#875f23 !important;
+      font-family:Georgia, "Times New Roman", serif;
+      margin-top:15px;
+    }
+
+    .choose-box {
+      background:
+        linear-gradient(90deg, rgba(6,43,37,.96), rgba(6,43,37,.82)),
+        linear-gradient(135deg,#123b3a,#062b25);
+      border:1px solid rgba(200,155,53,.45);
+      padding:42px;
+      color:white;
+      min-height:430px;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .choose-box:after {
+      content:"";
+      position:absolute;
+      right:-80px;
+      bottom:-100px;
+      width:340px;
+      height:230px;
+      border:18px solid rgba(200,155,53,.13);
+      border-bottom:0;
+      border-radius:340px 340px 0 0;
+    }
+
+    .choose-box h2 {
+      color:var(--gold2);
+      font-size:34px;
+      margin-bottom:24px;
+    }
+
+    .choose-item {
+      display:grid;
+      grid-template-columns:34px 1fr;
+      gap:14px;
+      margin-bottom:20px;
+      position:relative;
+      z-index:2;
+    }
+
+    .check {
+      width:28px;
+      height:28px;
+      border-radius:50%;
+      background:var(--gold2);
+      color:#082b26;
+      display:grid;
+      place-items:center;
+      font-weight:bold;
+    }
+
+    .choose-item h3 {
+      font-family:Arial, sans-serif;
+      font-size:15px;
+      text-transform:uppercase;
+      color:var(--gold2);
+      margin:0 0 4px;
+      font-weight:800;
+    }
+
+    .choose-item p {
+      margin:0;
+      color:rgba(255,255,255,.84);
+      font-size:14px;
+    }
+
+    .intake-section {
+      background:var(--cream);
+      border-top:1px solid rgba(200,155,53,.35);
+      border-bottom:1px solid rgba(200,155,53,.35);
+      padding:55px 40px;
+    }
+
+    .intake-wrap {
+      max-width:1280px;
+      margin:auto;
+      display:grid;
+      grid-template-columns:.45fr 1fr;
+      gap:44px;
+      align-items:center;
+    }
+
+    .intake-info {
+      border-right:1px solid rgba(200,155,53,.45);
+      padding-right:42px;
+    }
+
+    .intake-info p {
+      color:#3c4c48;
+    }
+
+    .mini-logo {
+      width:120px;
+      margin-top:20px;
+    }
+
+    form {
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr;
+      gap:15px;
+    }
+
+    form h2 {
+      grid-column:1 / -1;
+      text-align:center;
+      color:#263b36;
+      font-size:33px;
+      margin-bottom:4px;
+    }
+
+    input, select, textarea {
+      width:100%;
+      border:1px solid rgba(44,62,58,.18);
+      background:#fffaf1;
+      border-radius:4px;
+      padding:14px;
+      font:inherit;
+      color:#1d3732;
+    }
+
+    textarea {
+      grid-column:2 / 4;
+      min-height:48px;
+      resize:vertical;
+    }
+
+    .submit {
+      grid-column:3 / 4;
+      background:#082F29;
+      color:white;
+      border:1px solid var(--gold);
+      padding:15px;
+      border-radius:4px;
+      text-transform:uppercase;
+      letter-spacing:.12em;
+      font-weight:bold;
+      cursor:pointer;
+    }
+
+    .footer {
+      background:#062B25;
+      color:white;
+      border-top:3px solid var(--gold);
+    }
+
+    .footer-inner {
+      max-width:1280px;
+      margin:auto;
+      padding:34px 40px;
+      display:grid;
+      grid-template-columns:1.2fr 1fr 1fr 1fr;
+      gap:32px;
+      align-items:start;
+    }
+
+    .footer-logo {
+      width:250px;
+      max-width:100%;
+    }
+
+    .footer h3 {
+      color:var(--gold2);
+      font-family:Arial, sans-serif;
+      text-transform:uppercase;
+      letter-spacing:.16em;
+      font-size:14px;
+      margin-bottom:16px;
+    }
+
+    .footer p,.footer a {
+      color:rgba(255,255,255,.82);
+      font-size:14px;
+      line-height:1.8;
+      display:block;
+    }
+
+    .bottom {
+      border-top:1px solid rgba(200,155,53,.35);
+      max-width:1280px;
+      margin:auto;
+      padding:16px 40px;
+      display:flex;
+      justify-content:space-between;
+      color:rgba(255,255,255,.65);
+      font-size:13px;
+    }
+
+    @media (max-width:980px) {
+      .nav {
+        height:auto;
+        grid-template-columns:1fr;
+        padding:18px 22px;
+        text-align:center;
+      }
+
+      .nav-left,.nav-right {
+        justify-content:center;
+        flex-wrap:wrap;
+        gap:14px;
+      }
+
+      .hero-inner {
+        grid-template-columns:1fr;
+        padding:54px 24px;
+      }
+
+      .hero-copy h1 { font-size:46px; }
+
+      .hero:after { opacity:.22; }
+
+      .values-inner,
+      .chapter-grid,
+      .split,
+      .intake-wrap,
+      .footer-inner {
+        grid-template-columns:1fr;
+      }
+
+      .value { border-right:0; border-bottom:1px solid rgba(200,155,53,.28); }
+      .value:last-child { border-bottom:0; }
+
+      .split { padding:40px 22px; }
+      .intake-info { border-right:0; padding-right:0; }
+
+      form { grid-template-columns:1fr; }
+      textarea,.submit { grid-column:auto; }
+
+      .bottom { flex-direction:column; gap:10px; text-align:center; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header class="topbar">
+    <div class="nav">
+      <div class="nav-left">
+        <a href="#">Home</a>
+        <a href="#about">About Us</a>
+        <a href="#chapters">Our Chapters</a>
+        <a href="#services">Services</a>
+      </div>
+
+      <img class="nav-logo" src="assets/maybridge-logo-header.png" alt="MayBridge Care Collective Logo" />
+
+      <div class="nav-right">
+        <a href="#why">Why Choose Us</a>
+        <a href="#tribute">Our Story</a>
+        <a href="#contact">Contact</a>
+        <a class="nav-cta" href="#intake">Intake Form</a>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero" id="about">
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <h1>Bridging Quality<br/>and Excellence in Care</h1>
+        <div class="gold-line"></div>
+        <div class="hero-script">Bridging Hearts Through Care</div>
+        <p>Compassionate care. Trusted connections. Better lives.</p>
+        <p>Premium support for seniors, individuals with disabilities, veterans, youth, and families in Hampton, Virginia.</p>
+        <div class="hero-buttons">
+          <a class="btn btn-primary" href="#services">Our Services</a>
+          <a class="btn btn-gold" href="#intake">Intake Form</a>
+        </div>
+      </div>
+
+      <div class="hero-logo-card">
+        <img src="assets/maybridge-logo.png" alt="MayBridge logo and values" />
+      </div>
+    </div>
+  </section>
+
+  <section class="values-strip">
+    <div class="values-inner">
+      <div class="value">
+        <div class="value-icon">❤</div>
+        <div><h3>Compassion</h3><p>We lead with heart.</p></div>
+      </div>
+      <div class="value">
+        <div class="value-icon">❦</div>
+        <div><h3>Dignity & Respect</h3><p>We honor every individual.</p></div>
+      </div>
+      <div class="value">
+        <div class="value-icon">●</div>
+        <div><h3>Community</h3><p>Stronger together, better lives.</p></div>
+      </div>
+      <div class="value">
+        <div class="value-icon">🤝</div>
+        <div><h3>Trust</h3><p>Reliable care you can count on.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-dark" id="chapters">
+    <div class="section-title">
+      <div class="eyebrow">Our Chapters</div>
+      <h2>Comprehensive Care. Lasting Impact.</h2>
+      <p>MayBridge Care Collective is made up of four chapters, each dedicated to meeting unique needs with compassion, dignity, and excellence.</p>
+    </div>
+
+    <div class="chapter-grid">
+      <div class="chapter-card">
+        <div class="chapter-img legacy"></div>
+        <div class="chapter-content">
+          <div class="chapter-medallion">⌂</div>
+          <h3>Legacy</h3>
+          <h4>Senior Care</h4>
+          <p>Compassionate in-home care that honors seniors and their legacy.</p>
+          <a href="#intake">Learn More</a>
+        </div>
+      </div>
+
+      <div class="chapter-card">
+        <div class="chapter-img living"></div>
+        <div class="chapter-content">
+          <div class="chapter-medallion">♣</div>
+          <h3>Living</h3>
+          <h4>Residential Care</h4>
+          <p>Private homes where individuals with disabilities can live with dignity and independence.</p>
+          <a href="#intake">Learn More</a>
+        </div>
+      </div>
+
+      <div class="chapter-card">
+        <div class="chapter-img dod"></div>
+        <div class="chapter-content">
+          <div class="chapter-medallion">★</div>
+          <h3>D.O.D.</h3>
+          <h4>Veteran Program</h4>
+          <p>Dedicated support for those who have served our country.</p>
+          <a href="#intake">Learn More</a>
+        </div>
+      </div>
+
+      <div class="chapter-card">
+        <div class="chapter-img future"></div>
+        <div class="chapter-content">
+          <div class="chapter-medallion">⚭</div>
+          <h3>Our Future</h3>
+          <h4>Youth & Community Development</h4>
+          <p>Empowering youth and building stronger communities through mentorship and personal growth.</p>
+          <a href="#intake">Learn More</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="split" id="tribute">
+    <div class="tribute-box">
+      <div class="eyebrow">A Tribute To</div>
+      <h2>Therese May</h2>
+      <div class="tribute-dates">5/4/1943 – 10/14/23</div>
+      <p>MayBridge Care Collective was founded on the support of the need of the aging community and bridging the gap between quality care and compassion — a realization of a need while I cared for my grandmother.</p>
+      <p class="tribute-script">Her legacy lives on in every life we touch.</p>
+    </div>
+
+    <div class="choose-box" id="why">
+      <h2>Why Choose Us</h2>
+
+      <div class="choose-item">
+        <div class="check">✓</div>
+        <div><h3>Personalized Care</h3><p>We tailor care to meet each individual’s unique needs and preferences.</p></div>
+      </div>
+
+      <div class="choose-item">
+        <div class="check">✓</div>
+        <div><h3>Experienced & Trusted Team</h3><p>Our caregivers are reliable, compassionate, and committed to excellence.</p></div>
+      </div>
+
+      <div class="choose-item">
+        <div class="check">✓</div>
+        <div><h3>Committed to Excellence</h3><p>We uphold high standards in everything we do.</p></div>
+      </div>
+
+      <div class="choose-item">
+        <div class="check">✓</div>
+        <div><h3>Rooted in Community</h3><p>We are your neighbors, dedicated to strengthening the communities we serve.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="intake-section" id="intake">
+    <div class="intake-wrap">
+      <div class="intake-info">
+        <p>We’re here to help. Fill out the form below and a member of our team will contact you within 24–48 hours.</p>
+        <img class="mini-logo" src="assets/maybridge-logo-header.png" alt="MayBridge logo" />
+      </div>
+
+      <form>
+        <h2>Request Care — Intake Form</h2>
+        <input placeholder="Full Name" />
+        <input placeholder="Phone Number" />
+        <input placeholder="Email Address" />
+        <select>
+          <option>Select Chapter</option>
+          <option>Legacy - Senior Care</option>
+          <option>Living - Residential Care</option>
+          <option>D.O.D. - Veteran Program</option>
+          <option>Our Future - Youth & Community Development</option>
+        </select>
+        <select>
+          <option>Service Needed</option>
+          <option>In-Home Care</option>
+          <option>Senior Care</option>
+          <option>Disability Support</option>
+          <option>Youth & Family Support</option>
+          <option>Veteran Support</option>
+        </select>
+        <textarea placeholder="Tell us more about your needs..."></textarea>
+        <button class="submit" type="button">Submit Request</button>
+      </form>
+    </div>
+  </section>
+
+  <footer class="footer" id="contact">
+    <div class="footer-inner">
+      <div>
+        <img class="footer-logo" src="assets/maybridge-logo-header.png" alt="MayBridge logo" />
+      </div>
+
+      <div>
+        <h3>Quick Links</h3>
+        <a href="#about">About Us</a>
+        <a href="#chapters">Our Chapters</a>
+        <a href="#services">Services</a>
+        <a href="#why">Why Choose Us</a>
+        <a href="#intake">Intake Form</a>
+      </div>
+
+      <div>
+        <h3>Contact Us</h3>
+        <p>☎ (732) 310-1024</p>
+        <p>✉ info@maybridgecare.com</p>
+        <p>📍 Hampton, Virginia</p>
+      </div>
+
+      <div>
+        <h3>Services</h3>
+        <p>In-Home Care</p>
+        <p>Senior Care</p>
+        <p>Disability Support</p>
+        <p>Youth & Family Support</p>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <span>© 2026 MayBridge Care Collective. All Rights Reserved.</span>
+      <span>Privacy Policy&nbsp;&nbsp; | &nbsp;&nbsp;Terms of Service</span>
+    </div>
+  </footer>
+
+</body>
+</html>
