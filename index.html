@@ -677,14 +677,241 @@
 
       .bottom { flex-direction:column; gap:10px; text-align:center; }
     }
-.legacy-premium { background: linear-gradient(135deg, #062B25, #0B3A32); padding: 80px 20px;
-color: #F7F1E5; }
- .legacy-footer {
+.legacy-premium {
+background:
+radial-gradient(circle at 85% 20%, rgba(228,196,106,0.15), transparent 28%),
+linear-gradient(135deg, #062B25 0%, #0B3A32 55%, #031A17 100%);
+padding: 90px 40px;
+color: #F7F1E5;
+border-top: 1px solid rgba(200,155,53,0.45);
+border-bottom: 1px solid rgba(200,155,53,0.45);
+}
+
+.legacy-container {
+max-width: 1280px;
+margin: auto;
+}
+
+.legacy-heading {
 text-align: center;
-margin-top: 50px;
-color: #C89B35;
-font-style: italic;
+max-width: 880px;
+margin: 0 auto 55px;
+}
+
+.legacy-heading .eyebrow {
+color: #E4C46A;
+text-transform: uppercase;
+letter-spacing: 0.24em;
+font-weight: bold;
+font-size: 14px;
+margin-bottom: 12px;
+}
+
+.legacy-heading h2 {
+font-family: Georgia, "Times New Roman", serif;
+font-size: 48px;
+font-weight: 500;
+color: #F7F1E5;
+margin-bottom: 18px;
+}
+
+.legacy-heading p {
+color: rgba(247,241,229,0.84);
+font-size: 18px;
+line-height: 1.75;
+}
+
+.legacy-showcase {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 34px;
+align-items: center;
+margin-bottom: 55px;
+}
+
+.legacy-image-card {
+background: #FFFDF7;
+border: 1px solid rgba(228,196,106,0.6);
+border-radius: 14px;
+padding: 26px;
+box-shadow: 0 22px 60px rgba(0,0,0,0.35);
+}
+
+.legacy-image-card img {
+width: 100%;
+display: block;
+}
+
+.legacy-feature-list {
+border: 1px solid rgba(228,196,106,0.5);
+background: rgba(255,255,255,0.06);
+border-radius: 14px;
+padding: 36px;
+box-shadow: 0 18px 50px rgba(0,0,0,0.25);
+}
+
+.legacy-feature-list h3 {
+font-family: Georgia, "Times New Roman", serif;
+color: #E4C46A;
+font-size: 34px;
+margin-bottom: 14px;
+}
+
+.legacy-feature-list > p {
+color: rgba(247,241,229,0.82);
+margin-bottom: 26px;
+}
+
+.legacy-feature {
+display: grid;
+grid-template-columns: 54px 1fr;
+gap: 16px;
+margin-bottom: 20px;
+}
+
+.legacy-feature span {
+width: 54px;
+height: 54px;
+border-radius: 50%;
+border: 1px solid #C89B35;
+display: grid;
+place-items: center;
+color: #E4C46A;
+font-size: 24px;
+}
+
+.legacy-feature h4 {
+color: #E4C46A;
+margin: 0 0 4px;
+text-transform: uppercase;
+letter-spacing: 0.08em;
+}
+
+.legacy-feature p {
+margin: 0;
+color: rgba(247,241,229,0.78);
+}
+
+.legacy-services-grid {
+display: grid;
+grid-template-columns: repeat(4, 1fr);
+gap: 22px;
+}
+
+.legacy-service-card {
+background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+border: 1px solid rgba(228,196,106,0.55);
+border-radius: 12px;
+padding: 32px 24px;
+text-align: center;
+box-shadow: 0 18px 50px rgba(0,0,0,0.28);
+}
+
+.legacy-icon {
+width: 76px;
+height: 76px;
+margin: 0 auto 22px;
+border-radius: 50%;
+border: 2px solid #C89B35;
+background: #082F29;
+color: #E4C46A;
+display: grid;
+place-items: center;
+font-size: 31px;
+}
+
+.legacy-service-card h3 {
+font-family: Georgia, "Times New Roman", serif;
+color: #E4C46A;
+font-size: 25px;
+margin-bottom: 8px;
+}
+
+.legacy-service-card h4 {
+color: #F7F1E5;
+font-weight: 400;
+margin-bottom: 16px;
+}
+
+.legacy-service-card p,
+.legacy-service-card li {
+color: rgba(247,241,229,0.78);
+font-size: 15px;
+line-height: 1.6;
+}
+
+.legacy-service-card ul {
+text-align: left;
+padding-left: 18px;
+min-height: 150px;
+}
+
+.legacy-service-card a {
+display: inline-block;
+margin-top: 18px;
+padding: 12px 20px;
+border-radius: 4px;
+background: linear-gradient(135deg, #C89B35, #E4C46A);
+color: #062B25;
+text-transform: uppercase;
 letter-spacing: 0.1em;
+font-size: 12px;
+font-weight: bold;
+text-decoration: none;
+}
+
+.legacy-visual-row {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 26px;
+margin-top: 55px;
+}
+
+.legacy-visual-box,
+.legacy-contact-box {
+border: 1px solid rgba(228,196,106,0.55);
+background: rgba(255,255,255,0.06);
+border-radius: 12px;
+padding: 28px;
+text-align: center;
+}
+
+.legacy-visual-box img {
+width: 100%;
+max-width: 420px;
+}
+
+.legacy-contact-box h3 {
+color: #E4C46A;
+font-family: Georgia, "Times New Roman", serif;
+font-size: 32px;
+}
+
+.legacy-contact-box p {
+color: rgba(247,241,229,0.85);
+font-size: 17px;
+}
+
+@media (max-width: 980px) {
+.legacy-premium {
+padding: 70px 24px;
+}
+
+.legacy-heading h2 {
+font-size: 36px;
+}
+
+.legacy-showcase,
+.legacy-services-grid,
+.legacy-visual-row {
+grid-template-columns: 1fr;
+}
+
+.legacy-service-card ul {
+min-height: auto;
+}
+}
+
   </style>
 </head>
 
@@ -806,67 +1033,122 @@ letter-spacing: 0.1em;
   </section>
 <section class="legacy-premium" id="legacy-services">
 <div class="legacy-container">
+
 <div class="legacy-heading">
 <div class="eyebrow">Legacy Chapter</div>
 <h2>Companion & Concierge Support</h2>
 <p>
-The Legacy chapter of MayBridge Care Collective is dedicated to supporting aging individuals
-and families through dignified, non-medical care and elevated concierge-level assistance.
-We bridge the gap between quality service and compassionate human connection.
+The Legacy chapter of MayBridge Care Collective provides dignified, non-medical support for seniors
+and families who need reliable care, trusted communication, and elevated daily assistance.
 </p>
 </div>
+
+<div class="legacy-showcase">
+<div class="legacy-image-card">
+<img src="maybridge-logo.png" alt="MayBridge Care Collective branding" />
+</div>
+
+<div class="legacy-feature-list">
+<h3>Luxury Care, Rooted in Compassion</h3>
+<p>
+We combine reliable companion support with premium concierge-level coordination so families feel informed,
+supported, and confident at every stage.
+</p>
+
+<div class="legacy-feature">
+<span>❤</span>
+<div>
+<h4>Dignified Care</h4>
+<p>Support that preserves independence, comfort, and peace of mind.</p>
+</div>
+</div>
+
+<div class="legacy-feature">
+<span>✦</span>
+<div>
+<h4>Trusted Connections</h4>
+<p>Reliable communication, scheduling support, and family coordination.</p>
+</div>
+</div>
+
+<div class="legacy-feature">
+<span>⌂</span>
+<div>
+<h4>Elevated Experience</h4>
+<p>High-touch, concierge-style service tailored to each family’s needs.</p>
+</div>
+</div>
+</div>
+</div>
+
 <div class="legacy-services-grid">
+
 <div class="legacy-service-card">
-<div class="legacy-icon">❤</div>
-<h3>Companion Care</h3>
-<h4>Daily Presence & Support</h4>
-<p>
-Personalized companionship, safety supervision, wellness check-ins, meal preparation,
-light household support, errands, and meaningful engagement designed to maintain dignity
-and comfort at home.
-</p>
+<div class="legacy-icon">🏡</div>
+<h3>In-Home Companion Care</h3>
+<h4>Reliable support for everyday living</h4>
+<ul>
+<li>Companion support & supervision</li>
+<li>Transportation & errands</li>
+<li>Meal preparation</li>
+<li>Light housekeeping</li>
+<li>Wellness check-ins</li>
+</ul>
 <a href="#intake">Request Support</a>
 </div>
+
 <div class="legacy-service-card">
-<div class="legacy-icon">✦</div>
-<h3>Concierge Support</h3>
-<h4>Elevated Care Experience</h4>
-<p>
-Transportation to appointments, in-person visit support, schedule coordination,
-document organization, and family communication—delivered with a high-touch,
-concierge-level approach.
-</p>
-<a href="#intake">Request Support</a>
+<div class="legacy-icon">🚗</div>
+<h3>Premium Concierge Support</h3>
+<h4>Elevated care for families who expect more</h4>
+<ul>
+<li>Appointment transportation & in-visit support</li>
+<li>Medical appointment advocacy</li>
+<li>Schedule coordination & management</li>
+<li>Document organization</li>
+<li>Family communication support</li>
+</ul>
+<a href="#intake">Request Concierge Support</a>
 </div>
+
 <div class="legacy-service-card">
-<div class="legacy-icon">✓</div>
+<div class="legacy-icon">🤝</div>
 <h3>Placement Support</h3>
-<h4>Trusted Care Connections</h4>
+<h4>When your needs exceed our direct services</h4>
 <p>
-When care needs extend beyond our direct services, we provide trusted placement
-support—connecting families with qualified caregivers and licensed agencies
-aligned with their specific needs.
+If we are unable to support your care needs directly, we provide trusted placement services,
+connecting families with qualified caregivers, care providers, or licensed agencies.
 </p>
 <a href="#intake">Request Placement</a>
 </div>
-<div class="legacy-service-card">
-<div class="legacy-icon">■</div>
 
-<h3>Family Care Planning</h3>
-<h4>Guidance & Coordination</h4>
-<p>
-Strategic support for families navigating care decisions, scheduling,
-transitions, and ongoing needs—ensuring clarity, structure, and peace of mind
-at every stage.
-</p>
-<a href="#intake">Request Guidance</a>
+<div class="legacy-service-card">
+<div class="legacy-icon">✨</div>
+<h3>Why Choose MayBridge</h3>
+<h4>A premium care experience</h4>
+<ul>
+<li>Personalized, high-touch care</li>
+<li>Reliable and responsive support</li>
+<li>Trusted community connections</li>
+<li>Elevated, concierge-level experience</li>
+</ul>
+<a href="#intake">Start Intake</a>
+</div>
+
+</div>
+
+<div class="legacy-visual-row">
+<div class="legacy-visual-box">
+<img src="maybridge-logo-header.png" alt="MayBridge Care Collective logo" />
+</div>
+<div class="legacy-contact-box">
+<h3>Contact MayBridge</h3>
+<p>Serving Families in Virginia</p>
+<p><strong>732-310-1024</strong></p>
+<p>Compassionate Care. Trusted Connections. Better Lives.</p>
 </div>
 </div>
-<div class="legacy-footer">
-<p>
-Compassionate Care. Trusted Connections. Better Lives.
-</p>
-</div>
+
 </div>
 </section>
   <section class="split" id="tribute">
