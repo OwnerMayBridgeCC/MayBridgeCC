@@ -12,6 +12,6 @@
   "dependencies": {
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
-    "stripe": "^18.5.0"
+    "stripe": "^22.1.1"
   }
 }
