@@ -3,315 +3,42 @@ import express from "express";
 import Stripe from "stripe";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { db, transaction } from "./lib/db.js";
+import { SESSION_COOKIE, hashPassword, verifyPassword, randomToken, tokenHash, parseCookies, sessionCookie } from "./lib/auth.js";
+import { membershipPrice, applicationFee } from "./lib/pricing.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const app = express();
-const port = Number(process.env.PORT || 4242);
-const baseUrl = (process.env.BASE_URL || `http://localhost:${port}`).replace(/\/$/, "");
+const app=express(), port=Number(process.env.PORT||4242), baseUrl=(process.env.BASE_URL||`http://localhost:${port}`).replace(/\/$/,"");
+const stripe=process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
+const fail=(status,message)=>Object.assign(new Error(message),{status});
+const cleanEmail=v=>String(v||"").trim().toLowerCase();
+const requiredStripe=()=>{if(!stripe)throw fail(503,"Stripe is not configured.");return stripe};
+async function currentUser(req){const token=parseCookies(req.headers.cookie)[SESSION_COOKIE];if(!token)return null;const {rows}=await db().query(`SELECT u.id,u.email,u.role,u.display_name FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now() AND u.disabled_at IS NULL`,[tokenHash(token)]);return rows[0]||null}
+const auth=(...roles)=>async(req,res,next)=>{try{req.user=await currentUser(req);if(!req.user)throw fail(401,"Sign in required.");if(roles.length&&!roles.includes(req.user.role))throw fail(403,"You do not have permission for this action.");next()}catch(e){next(e)}};
 
-/**
- * Fail early with an actionable message. This avoids accidentally starting a
- * server that can render pages but can never make a Stripe request.
- */
-function requiredEnv(name, hint) {
-  const value = process.env[name];
-  if (!value || value.includes("REPLACE_ME")) {
-    throw new Error(`Missing ${name}. ${hint}`);
-  }
-  return value;
-}
+// Raw signed webhooks must precede JSON parsing. A stored event ID makes retries idempotent.
+app.post("/webhooks/stripe",express.raw({type:"application/json"}),async(req,res,next)=>{try{const s=requiredStripe(), secret=process.env.STRIPE_WEBHOOK_SECRET;if(!secret)throw fail(503,"STRIPE_WEBHOOK_SECRET is not configured.");const event=s.webhooks.constructEvent(req.body,req.headers["stripe-signature"],secret);await transaction(async c=>{const inserted=await c.query("INSERT INTO webhook_events(stripe_event_id,event_type) VALUES($1,$2) ON CONFLICT DO NOTHING RETURNING stripe_event_id",[event.id,event.type]);if(!inserted.rowCount)return;const o=event.data.object;if(event.type==="checkout.session.completed"&&o.metadata?.booking_id)await c.query("UPDATE bookings SET status='booked',stripe_payment_intent_id=$1 WHERE id=$2 AND stripe_checkout_session_id=$3",[o.payment_intent,o.metadata.booking_id,o.id]);if(event.type.startsWith("customer.subscription.")){const status=event.type==="customer.subscription.deleted"?"canceled":o.status;await c.query("UPDATE memberships SET status=$1,current_period_end=to_timestamp($2),updated_at=now() WHERE stripe_subscription_id=$3",[status,o.current_period_end||0,o.id])}});res.json({received:true})}catch(e){next(e)}});
+app.use(express.json({limit:"64kb"}));
 
-let stripeClient;
-try {
-  // One Stripe Client is shared by every route. The SDK selects the API version.
-  stripeClient = new Stripe(requiredEnv(
-    "STRIPE_SECRET_KEY",
-    "Copy STRIPE_SECRET_KEY from Stripe Dashboard (use a test key while developing)."
-  ));
-} catch (error) {
-  console.error(`Stripe startup error: ${error.message}`);
-  process.exit(1);
-}
+app.post("/api/auth/signup",async(req,res,next)=>{try{const role=req.body?.role;if(!["customer","provider"].includes(role))throw fail(400,"Choose a customer or provider account.");const email=cleanEmail(req.body.email), name=String(req.body.display_name||"").trim();if(!/^\S+@\S+\.\S+$/.test(email)||!name)throw fail(400,"A valid email and display name are required.");const password=hashPassword(req.body.password);const token=randomToken();const user=await transaction(async c=>{const {rows}=await c.query("INSERT INTO users(email,password_hash,role,display_name) VALUES($1,$2,$3,$4) RETURNING id,email,role,display_name",[email,password,role,name]);if(role==="provider")await c.query("INSERT INTO provider_profiles(user_id) VALUES($1)",[rows[0].id]);await c.query("INSERT INTO sessions(user_id,token_hash,expires_at) VALUES($1,$2,now()+interval '14 days')",[rows[0].id,tokenHash(token)]);return rows[0]});res.setHeader("Set-Cookie",sessionCookie(token));res.status(201).json({user})}catch(e){if(e.code==="23505")e=fail(409,"An account with that email already exists.");next(e)}});
+app.post("/api/auth/login",async(req,res,next)=>{try{const {rows}=await db().query("SELECT * FROM users WHERE lower(email)=$1 AND disabled_at IS NULL",[cleanEmail(req.body.email)]), user=rows[0];if(!user||!verifyPassword(String(req.body.password||""),user.password_hash))throw fail(401,"Email or password is incorrect.");const token=randomToken();await db().query("INSERT INTO sessions(user_id,token_hash,expires_at) VALUES($1,$2,now()+interval '14 days')",[user.id,tokenHash(token)]);res.setHeader("Set-Cookie",sessionCookie(token));res.json({user:{id:user.id,email:user.email,role:user.role,display_name:user.display_name}})}catch(e){next(e)}});
+app.post("/api/auth/logout",auth(),async(req,res,next)=>{try{const token=parseCookies(req.headers.cookie)[SESSION_COOKIE];await db().query("DELETE FROM sessions WHERE token_hash=$1",[tokenHash(token)]);res.setHeader("Set-Cookie",sessionCookie("",0));res.status(204).end()}catch(e){next(e)}});
+app.get("/api/me",auth(),(req,res)=>res.json({user:req.user}));
+app.post("/api/auth/recovery",async(req,res,next)=>{try{const {rows}=await db().query("SELECT id FROM users WHERE lower(email)=$1",[cleanEmail(req.body.email)]);if(rows[0]){const token=randomToken();await db().query("INSERT INTO recovery_tokens(user_id,token_hash,expires_at) VALUES($1,$2,now()+interval '1 hour')",[rows[0].id,tokenHash(token)]);if(process.env.NODE_ENV!=="production")res.setHeader("X-Recovery-Token",token)}res.json({message:"If the account exists, recovery instructions have been queued."})}catch(e){next(e)}});
+app.post("/api/auth/reset",async(req,res,next)=>{try{const password=hashPassword(req.body.password), hash=tokenHash(String(req.body.token||""));const result=await transaction(async c=>{const {rows}=await c.query("UPDATE recovery_tokens SET used_at=now() WHERE token_hash=$1 AND used_at IS NULL AND expires_at>now() RETURNING user_id",[hash]);if(!rows[0])throw fail(400,"Recovery link is invalid or expired.");await c.query("UPDATE users SET password_hash=$1 WHERE id=$2",[password,rows[0].user_id]);await c.query("DELETE FROM sessions WHERE user_id=$1",[rows[0].user_id]);return true});res.json({reset:result})}catch(e){next(e)}});
 
-function accountIdFromRequest(req) {
-  const accountId = req.params.accountId;
-  if (!/^acct_[A-Za-z0-9]+$/.test(accountId)) {
-    const error = new Error("Use a valid connected account ID (acct_...).");
-    error.status = 400;
-    throw error;
-  }
-  return accountId;
-}
+app.get("/api/dashboard",auth(),async(req,res,next)=>{try{const bookings=await db().query("SELECT id,starts_at,status,amount_cents,provider_id,customer_id FROM bookings WHERE customer_id=$1 OR provider_id=$1 ORDER BY starts_at DESC",[req.user.id]);const notifications=await db().query("SELECT id,kind,subject,body,read_at,created_at FROM notifications WHERE user_id=$1 ORDER BY created_at DESC LIMIT 30",[req.user.id]);res.json({user:req.user,bookings:bookings.rows,notifications:notifications.rows})}catch(e){next(e)}});
+app.post("/api/care-recipients",auth("customer"),async(req,res,next)=>{try{const name=String(req.body.preferred_name||"").trim();if(!name)throw fail(400,"Preferred name is required.");const {rows}=await db().query("INSERT INTO care_recipients(customer_id,preferred_name,relationship,notes) VALUES($1,$2,$3,$4) RETURNING id,preferred_name,relationship,created_at",[req.user.id,name,req.body.relationship||null,req.body.notes||null]);res.status(201).json({care_recipient:rows[0]})}catch(e){next(e)}});
+app.get("/api/care-recipients",auth("customer"),async(req,res,next)=>{try{const {rows}=await db().query("SELECT id,preferred_name,relationship,created_at FROM care_recipients WHERE customer_id=$1 ORDER BY created_at",[req.user.id]);res.json({care_recipients:rows})}catch(e){next(e)}});
+app.put("/api/provider/profile",auth("provider"),async(req,res,next)=>{try{const b=req.body,{rows}=await db().query("UPDATE provider_profiles SET bio=$2,experience_years=$3,service_zips=$4,service_types=$5,qualifications=$6,availability=$7 WHERE user_id=$1 RETURNING *",[req.user.id,String(b.bio||""),b.experience_years||null,b.service_zips||[],b.service_types||[],b.qualifications||[],b.availability||{}]);res.json({profile:rows[0]})}catch(e){next(e)}});
+app.post("/api/requests",auth("customer"),async(req,res,next)=>{try{const b=req.body, own=await db().query("SELECT 1 FROM care_recipients WHERE id=$1 AND customer_id=$2",[b.care_recipient_id,req.user.id]);if(!own.rowCount)throw fail(404,"Care recipient not found.");const starts=new Date(b.starts_at);if(!b.service_type||!/^\d{5}$/.test(b.zip)||Number.isNaN(+starts)||starts<=new Date())throw fail(400,"Service, five-digit ZIP, and future start time are required.");const clinical=Boolean(b.clinical);const qualifications=clinical?[...(b.required_qualifications||[]),"licensed"]:b.required_qualifications||[];const {rows}=await db().query("INSERT INTO service_requests(customer_id,care_recipient_id,service_type,zip,starts_at,duration_minutes,clinical,required_qualifications) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *",[req.user.id,b.care_recipient_id,b.service_type,b.zip,starts,b.duration_minutes,clinical,[...new Set(qualifications)]]);res.status(201).json({request:rows[0]})}catch(e){next(e)}});
+app.get("/api/requests/:id/matches",auth("customer"),async(req,res,next)=>{try{const request=await db().query("SELECT * FROM service_requests WHERE id=$1 AND customer_id=$2",[req.params.id,req.user.id]);if(!request.rowCount)throw fail(404,"Request not found.");const r=request.rows[0];const {rows}=await db().query(`SELECT u.id,u.display_name,p.bio,p.experience_years,p.service_types,p.qualifications,p.verification_status,p.rating,p.review_count FROM provider_profiles p JOIN users u ON u.id=p.user_id WHERE p.verification_status='verified' AND $1=ANY(p.service_zips) AND $2=ANY(p.service_types) AND p.qualifications @> $3::text[] AND NOT EXISTS(SELECT 1 FROM bookings b WHERE b.provider_id=p.user_id AND b.status<>'canceled' AND tstzrange(b.starts_at,b.ends_at,'[)') && tstzrange($4::timestamptz,$4::timestamptz+($5||' minutes')::interval,'[)')) ORDER BY p.rating DESC NULLS LAST,u.display_name`,[r.zip,r.service_type,r.required_qualifications,r.starts_at,r.duration_minutes]);res.json({matches:rows})}catch(e){next(e)}});
+app.post("/api/requests/:id/select",auth("customer"),async(req,res,next)=>{try{const s=requiredStripe(),amount=Number(req.body.amount_cents),bps=Number(process.env.SERVICE_COMMISSION_BPS);const fee=applicationFee(amount,bps);const booking=await transaction(async c=>{const rq=await c.query("SELECT * FROM service_requests WHERE id=$1 AND customer_id=$2 AND status='open' FOR UPDATE",[req.params.id,req.user.id]);if(!rq.rowCount)throw fail(409,"Request is unavailable or already selected.");const r=rq.rows[0], provider=await c.query("SELECT stripe_account_id,payments_enabled,verification_status FROM provider_profiles WHERE user_id=$1 AND $2=ANY(service_zips) AND $3=ANY(service_types) AND qualifications @> $4::text[]",[req.body.provider_id,r.zip,r.service_type,r.required_qualifications]);if(!provider.rowCount||provider.rows[0].verification_status!=="verified")throw fail(400,"Provider is not eligible for this request.");if(!provider.rows[0].payments_enabled)throw fail(409,"Provider cannot accept payments yet.");const end=new Date(+new Date(r.starts_at)+r.duration_minutes*60000);const {rows}=await c.query("INSERT INTO bookings(request_id,customer_id,provider_id,starts_at,ends_at,amount_cents,commission_cents) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *",[r.id,req.user.id,req.body.provider_id,r.starts_at,end,amount,fee]);await c.query("UPDATE service_requests SET status='selected' WHERE id=$1",[r.id]);rows[0].stripe_account_id=provider.rows[0].stripe_account_id;return rows[0]});const session=await s.checkout.sessions.create({mode:"payment",line_items:[{price_data:{currency:"usd",product_data:{name:"MayBridge care service"},unit_amount:booking.amount_cents},quantity:1}],payment_intent_data:{application_fee_amount:booking.commission_cents,transfer_data:{destination:booking.stripe_account_id}},metadata:{booking_id:booking.id},success_url:`${baseUrl}/?booking=success`,cancel_url:`${baseUrl}/?booking=canceled`},{idempotencyKey:`booking-${booking.id}`});await db().query("UPDATE bookings SET stripe_checkout_session_id=$1 WHERE id=$2",[session.id,booking.id]);res.status(201).json({booking_id:booking.id,checkout_url:session.url})}catch(e){next(e)}});
+app.post("/api/bookings/:id/complete",auth("provider"),async(req,res,next)=>{try{const {rows}=await db().query("UPDATE bookings SET status='provider_completed' WHERE id=$1 AND provider_id=$2 AND status='in_progress' RETURNING id,status",[req.params.id,req.user.id]);if(!rows[0])throw fail(409,"Only an in-progress service can be completed.");res.json({booking:rows[0]})}catch(e){next(e)}});
+app.post("/api/bookings/:id/confirm",auth("customer"),async(req,res,next)=>{try{const {rows}=await db().query("UPDATE bookings SET status='completed',customer_confirmed_at=now(),completed_at=now() WHERE id=$1 AND customer_id=$2 AND status='provider_completed' RETURNING id,status",[req.params.id,req.user.id]);if(!rows[0])throw fail(409,"This service is not ready for confirmation.");res.json({booking:rows[0]})}catch(e){next(e)}});
+app.post("/api/bookings/:id/review",auth("customer"),async(req,res,next)=>{try{const rating=Number(req.body.rating);if(!Number.isInteger(rating)||rating<1||rating>5)throw fail(400,"Rating must be from 1 to 5.");const review=await transaction(async c=>{const booking=await c.query("SELECT provider_id FROM bookings WHERE id=$1 AND customer_id=$2 AND status='completed'",[req.params.id,req.user.id]);if(!booking.rowCount)throw fail(403,"Only completed services may be reviewed.");const {rows}=await c.query("INSERT INTO reviews(booking_id,customer_id,provider_id,rating,body) VALUES($1,$2,$3,$4,$5) RETURNING *",[req.params.id,req.user.id,booking.rows[0].provider_id,rating,String(req.body.body||"").slice(0,2000)]);await c.query("UPDATE provider_profiles SET rating=(SELECT avg(rating) FROM reviews WHERE provider_id=$1),review_count=(SELECT count(*) FROM reviews WHERE provider_id=$1) WHERE user_id=$1",[booking.rows[0].provider_id]);return rows[0]});res.status(201).json({review})}catch(e){next(e)}});
+app.post("/api/memberships/checkout",auth("customer"),async(req,res,next)=>{try{const interval=req.body.interval,amount=membershipPrice(interval),price=interval==="monthly"?process.env.STRIPE_MONTHLY_PRICE_ID:process.env.STRIPE_ANNUAL_PRICE_ID;if(!price)throw fail(503,`Stripe ${interval} membership price is not configured.`);const s=requiredStripe();let customer=(await db().query("SELECT stripe_customer_id FROM users WHERE id=$1",[req.user.id])).rows[0].stripe_customer_id;if(!customer){customer=(await s.customers.create({email:req.user.email,name:req.user.display_name,metadata:{user_id:req.user.id}})).id;await db().query("UPDATE users SET stripe_customer_id=$1 WHERE id=$2",[customer,req.user.id])}const session=await s.checkout.sessions.create({customer,mode:"subscription",line_items:[{price,quantity:1}],metadata:{user_id:req.user.id,interval,expected_amount_cents:String(amount)},success_url:`${baseUrl}/?membership=success`,cancel_url:`${baseUrl}/?membership=canceled`},{idempotencyKey:`membership-${req.user.id}-${interval}`});res.json({checkout_url:session.url})}catch(e){next(e)}});
 
-function sendError(res, error) {
-  const status = error.status || (error.type === "StripeAuthenticationError" ? 500 : 400);
-  console.error(error);
-  res.status(status).json({ error: error.message || "Stripe request failed." });
-}
-
-/**
- * V2 account creation. Do not add type: express/standard/custom here: V2
- * accounts use configuration and responsibilities instead.
- */
-app.post("/api/accounts", express.json(), async (req, res) => {
-  try {
-    const displayName = String(req.body?.display_name || "").trim();
-    const contactEmail = String(req.body?.contact_email || "").trim();
-    if (!displayName || !contactEmail) {
-      return res.status(400).json({ error: "display_name and contact_email are required." });
-    }
-    const account = await stripeClient.v2.core.accounts.create({
-      display_name: displayName,
-      contact_email: contactEmail,
-      identity: { country: "us" },
-      dashboard: "full",
-      defaults: {
-        responsibilities: {
-          fees_collector: "stripe",
-          losses_collector: "stripe"
-        }
-      },
-      configuration: {
-        customer: {},
-        merchant: {
-          capabilities: { card_payments: { requested: true } }
-        }
-      }
-    });
-    // TODO: In a real app, persist user.id -> account.id in your database.
-    res.json({ account_id: account.id });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-/**
- * Read status directly from V2 on every request. We intentionally do not cache
- * onboarding state in a database for this demo.
- */
-app.get("/api/accounts/:accountId/status", async (req, res) => {
-  try {
-    const accountId = accountIdFromRequest(req);
-    const account = await stripeClient.v2.core.accounts.retrieve(accountId, {
-      include: ["configuration.merchant", "requirements"]
-    });
-    const readyToProcessPayments =
-      account?.configuration?.merchant?.capabilities?.card_payments?.status === "active";
-    const requirementsStatus =
-      account?.requirements?.summary?.minimum_deadline?.status;
-    const onboardingComplete =
-      requirementsStatus !== "currently_due" && requirementsStatus !== "past_due";
-    res.json({
-      account_id: accountId,
-      ready_to_process_payments: readyToProcessPayments,
-      onboarding_complete: onboardingComplete,
-      requirements_status: requirementsStatus || "unknown",
-      capability_status: account?.configuration?.merchant?.capabilities?.card_payments?.status || "unknown"
-    });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-/** Create a V2 Account Link for Stripe-hosted onboarding. */
-app.post("/api/accounts/:accountId/onboarding-link", async (req, res) => {
-  try {
-    const accountId = accountIdFromRequest(req);
-    const link = await stripeClient.v2.core.accountLinks.create({
-      account: accountId,
-      use_case: {
-        type: "account_onboarding",
-        account_onboarding: {
-          configurations: ["merchant", "customer"],
-          refresh_url: `${baseUrl}/?accountId=${encodeURIComponent(accountId)}&refresh=1`,
-          return_url: `${baseUrl}/?accountId=${encodeURIComponent(accountId)}&onboarding=returned`
-        }
-      }
-    });
-    res.json({ url: link.url });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-/** Create a product on the connected account using the Stripe-Account header. */
-app.post("/api/accounts/:accountId/products", express.json(), async (req, res) => {
-  try {
-    const accountId = accountIdFromRequest(req);
-    const name = String(req.body?.name || "").trim();
-    const description = String(req.body?.description || "").trim();
-    const priceInCents = Number(req.body?.price_in_cents);
-    const currency = String(req.body?.currency || "usd").toLowerCase();
-    if (!name || !Number.isInteger(priceInCents) || priceInCents < 1) {
-      return res.status(400).json({ error: "name and a positive integer price_in_cents are required." });
-    }
-    const product = await stripeClient.v1.products.create({
-      name,
-      description,
-      default_price_data: { unit_amount: priceInCents, currency }
-    }, { stripeAccount: accountId });
-    res.json({ product });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-/** List products for one account. In production, use a user slug or database ID in URLs. */
-app.get("/api/accounts/:accountId/products", async (req, res) => {
-  try {
-    const accountId = accountIdFromRequest(req);
-    const products = await stripeClient.v1.products.list({
-      limit: 20,
-      active: true,
-      expand: ["data.default_price"]
-    }, { stripeAccount: accountId });
-    res.json({ products: products.data });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-/** Direct charge: Checkout runs on the connected account and pays an application fee. */
-app.post("/api/accounts/:accountId/checkout", express.json(), async (req, res) => {
-  try {
-    const accountId = accountIdFromRequest(req);
-    const productName = String(req.body?.name || "MayBridge service");
-    const unitAmount = Number(req.body?.unit_amount);
-    const currency = String(req.body?.currency || "usd").toLowerCase();
-    const applicationFee = Number(req.body?.application_fee_amount || 0);
-    if (!Number.isInteger(unitAmount) || unitAmount < 1) {
-      return res.status(400).json({ error: "unit_amount must be a positive integer in cents." });
-    }
-    const session = await stripeClient.v1.checkout.sessions.create({
-      line_items: [{ price_data: { currency, product_data: { name: productName }, unit_amount: unitAmount }, quantity: 1 }],
-      payment_intent_data: { application_fee_amount: applicationFee },
-      mode: "payment",
-      integration_identifier: "maybridge_demo_A7kP2mQx", // API >= 2026-03-25 requires an 8-character suffix.
-      success_url: `${baseUrl}/?paid=1&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/?canceled=1`
-    }, { stripeAccount: accountId });
-    res.json({ url: session.url });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-/** Subscription Checkout is created on the platform using the connected account as customer_account. */
-app.post("/api/accounts/:accountId/subscribe", async (req, res) => {
-  try {
-    const accountId = accountIdFromRequest(req);
-    const priceId = requiredEnv(
-      "PLATFORM_SUBSCRIPTION_PRICE_ID",
-      "Create a recurring platform Price and set PLATFORM_SUBSCRIPTION_PRICE_ID in .env."
-    );
-    const session = await stripeClient.v1.checkout.sessions.create({
-      customer_account: accountId,
-      mode: "subscription",
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${baseUrl}/?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/?subscription=canceled`
-    });
-    res.json({ url: session.url });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-/** Let the connected account manage its subscription in Stripe Billing Portal. */
-app.post("/api/accounts/:accountId/billing-portal", async (req, res) => {
-  try {
-    const accountId = accountIdFromRequest(req);
-    const session = await stripeClient.v1.billingPortal.sessions.create({
-      customer_account: accountId,
-      return_url: `${baseUrl}/?accountId=${encodeURIComponent(accountId)}`
-    });
-    res.json({ url: session.url });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-/**
- * V2 thin-event webhook. Register this route before express.json so the raw
- * request body is available for signature verification.
- */
-app.post("/webhooks/stripe/thin", express.raw({ type: "application/json" }), async (req, res) => {
-  try {
-    const secret = requiredEnv("STRIPE_WEBHOOK_SECRET", "Set the signing secret from stripe listen.");
-    const signature = req.headers["stripe-signature"];
-    const thinEvent = stripeClient.parseThinEvent(req.body, signature, secret);
-    // Thin events contain an ID/type envelope; retrieve the full event to inspect it.
-    const event = await stripeClient.v2.core.events.retrieve(thinEvent.id);
-    switch (event.type) {
-      case "v2.core.account[requirements].updated":
-        console.log("Account requirements changed:", event.data?.account);
-        // TODO: fetch/store the new requirements for the mapped user.
-        break;
-      case "v2.core.account[configuration.merchant].capability_status_updated":
-      case "v2.core.account[configuration.customer].capability_status_updated":
-      case "v2.core.account[.recipient].capability_status_updated":
-        console.log("Account capability changed:", event.type, event.data?.account);
-        // TODO: refresh the account status shown to the user.
-        break;
-      default:
-        console.log("Unhandled thin event:", event.type);
-    }
-    res.json({ received: true });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-/** Standard (non-thin) Billing webhook for subscription and customer changes. */
-app.post("/webhooks/stripe", express.raw({ type: "application/json" }), (req, res) => {
-  try {
-    const secret = requiredEnv("STRIPE_WEBHOOK_SECRET", "Set the signing secret from Stripe Dashboard.");
-    const event = stripeClient.webhooks.constructEvent(req.body, req.headers["stripe-signature"], secret);
-    switch (event.type) {
-      case "customer.subscription.updated": {
-        const subscription = event.data.object;
-        const customerAccount = subscription.customer_account;
-        // TODO: write subscription.items.data[0].price and quantity to your DB.
-        console.log("Subscription updated for", customerAccount, subscription.id);
-        break;
-      }
-      case "customer.subscription.deleted": {
-        const subscription = event.data.object;
-        // TODO: revoke access in your DB for subscription.customer_account.
-        console.log("Subscription canceled for", subscription.customer_account);
-        break;
-      }
-      case "payment_method.attached":
-      case "payment_method.detached":
-      case "customer.updated":
-      case "customer.tax_id.created":
-      case "customer.tax_id.deleted":
-      case "customer.tax_id.updated":
-      case "billing_portal.configuration.created":
-      case "billing_portal.configuration.updated":
-      case "billing_portal.session.created":
-        // TODO: record billing state changes, never use billing email as a login credential.
-        console.log("Billing event:", event.type);
-        break;
-      default:
-        console.log("Unhandled standard event:", event.type);
-    }
-    res.json({ received: true });
-  } catch (error) {
-    sendError(res, error);
-  }
-});
-
-app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
-
-app.use((error, req, res, next) => {
-  if (error) return sendError(res, error);
-  next();
-});
-
-app.listen(port, () => {
-  console.log(`MayBridge Stripe sample running at ${baseUrl}`);
-  console.log("Thin listener example:");
-  console.log("stripe listen --thin-events 'v2.core.account[requirements].updated,v2.core.account[configuration.merchant].capability_status_updated,v2.core.account[configuration.customer].capability_status_updated' --forward-thin-to http://localhost:" + port + "/webhooks/stripe/thin");
-});
+app.use(express.static(path.join(path.dirname(fileURLToPath(import.meta.url)),"public")));
+app.use((err,req,res,next)=>{if(res.headersSent)return next(err);const status=err.status||(err.code==="23505"?409:500);if(status>=500)console.error(err.message);res.status(status).json({error:status>=500?"The service is temporarily unavailable.":err.message})});
+if(process.env.NODE_ENV!=="test")app.listen(port,()=>console.log(`MayBridge marketplace listening at ${baseUrl}`));
+export { app };

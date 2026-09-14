@@ -1,19 +1,16 @@
-# MayBridge Stripe Connect sample
+# MayBridge marketplace
 
-This sample is a small Express server for MayBridge Care Collective. It demonstrates Accounts V2 onboarding, direct charges with an application fee, connected-account products, a hosted storefront, subscriptions, a billing portal, V2 thin requirement events, and standard Billing webhooks.
+The Express application now backs persistent customer and provider accounts, private care-recipient profiles, qualification-aware matching, bookings, completion, reviews, notifications, memberships, and Stripe payments. The original public branded site remains at the repository root.
 
-## Run it
+## Local setup
 
-1. Install Node 20 or newer.
-2. Copy `.env.example` to `.env`.
-3. Fill in `STRIPE_SECRET_KEY`. Start with a test-mode key; this app never commits secrets.
-4. Run `npm install`, then `npm start`.
-5. Open http://localhost:4242.
-6. For local V2 events, run the printed `stripe listen --thin-events ...` command and copy its `whsec_...` value into `STRIPE_WEBHOOK_SECRET`.
-7. Create a recurring Price on the platform account and set `PLATFORM_SUBSCRIPTION_PRICE_ID` before using the subscription route.
+1. Use Node 20+ and PostgreSQL 15+.
+2. Copy `.env.example` to `.env`; use Stripe **test mode** credentials.
+3. Run `npm install && npm run migrate && npm start`.
+4. Open `http://localhost:4242`.
 
-The server uses one `Stripe` Client instance for every request. The SDK chooses the API version automatically, so no version is hardcoded. Products and direct Checkout Sessions pass `stripeAccount`, which sets the `Stripe-Account` header.
+Admin users must be provisioned directly by an authorized database operator; public signup never accepts the admin role. Provider credential verification remains an admin/vendor operation separate from Stripe payout onboarding.
 
-## Production checklist
+## Security and payment boundaries
 
-Set `BASE_URL` to an HTTPS origin, persist your own user-to-account mapping where the TODO appears, authenticate every dashboard route, and verify webhook signatures. Finish all platform account requirements in Stripe Dashboard before accepting live payments. Use a provider slug or internal ID in storefront URLs instead of exposing `acct_` IDs.
+All portal routes use server-side, database-backed sessions and ownership checks. Stripe status changes are accepted only through signed, idempotently stored webhook events. Service amounts and commissions are calculated on the server; checkout stays unavailable until `SERVICE_COMMISSION_BPS` is explicitly configured. Stripe onboarding never changes `verification_status`.
