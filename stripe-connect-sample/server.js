@@ -2,6 +2,8 @@ import "dotenv/config";
 import express from "express";
 import Stripe from "stripe";
 import path from "node:path";
+import { randomBytes } from "node:crypto";
+import { installEmbeddedOnboarding } from "./embedded-onboarding.js";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -32,6 +34,18 @@ try {
   console.error(`Stripe startup error: ${error.message}`);
   process.exit(1);
 }
+
+// This demo has no production provider authentication. Fail closed with live keys.
+app.use("/api", (req, res, next) => {
+  res.set("Cache-Control", "no-store");
+  if (!/^sk_test_[A-Za-z0-9]+$/.test(process.env.STRIPE_SECRET_KEY || "")) {
+    return res.status(503).json({ error: "Test-only preview. Set STRIPE_SECRET_KEY to a sandbox sk_test_ key and STRIPE_PUBLISHABLE_KEY to its matching pk_test_ key, then redeploy." });
+  }
+  next();
+});
+installEmbeddedOnboarding(app, {
+  stripe: stripeClient, env: process.env, randomBytes, json: express.json
+});
 
 function accountIdFromRequest(req) {
   const accountId = req.params.accountId;
