@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MayBridge Connect</title>
+<style>
+:root{--ink:#173b35;--cream:#fbf8f1;--gold:#c9953c;--line:#d9d1c2}*{box-sizing:border-box}body{margin:0;background:var(--cream);color:var(--ink);font:16px/1.5 system-ui,sans-serif}main{max-width:760px;margin:0 auto;padding:32px 20px}h1{font-family:Georgia,serif;font-size:42px;margin:.2em 0}h2{margin-top:32px}section{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin:18px 0}label{display:block;font-weight:650;margin-top:12px}input{width:100%;padding:11px;border:1px solid #bdb4a5;border-radius:8px;font:inherit}button{background:var(--ink);color:#fff;border:0;border-radius:999px;padding:11px 17px;margin-top:15px;font-weight:700;cursor:pointer}button.secondary{background:var(--gold);color:#1d261f}pre{white-space:pre-wrap;background:#f1ede4;padding:12px;border-radius:8px}
+</style>
+</head>
+<body><main>
+<p>MayBridge Care Collective</p><h1>Provider Connect setup</h1>
+<p>Create a connected account, send the provider through Stripe onboarding, and manage a small product storefront.</p>
+<section><h2>1. Create provider account</h2>
+<form id="account-form"><label>Display name<input name="display_name" required value="Example MayBridge Provider"></label><label>Contact email<input name="contact_email" type="email" required></label><button>Create connected account</button></form><pre id="account-result">No account created yet.</pre></section>
+<section><h2>2. Onboard and check status</h2><label>Connected account ID<input id="account-id" placeholder="acct_..."></label><button class="secondary" id="onboard">Onboard to collect payments</button> <button id="status">Refresh status</button><pre id="status-result">Status is fetched directly from Stripe.</pre></section>
+<section><h2>3. Create a product</h2><form id="product-form"><label>Name<input name="name" required value="Care consultation"></label><label>Description<input name="description" value="A sample MayBridge service"></label><label>Price in cents<input name="price_in_cents" type="number" min="1" required value="5000"></label><button>Create product</button></form><pre id="product-result"></pre></section>
+<p><a id="store-link" href="#">Open storefront after entering an acct_ ID</a></p>
+</main>
+<script>
+const $=s=>document.querySelector(s), call=async(url,opts={})=>{const r=await fetch(url,{headers:{'Content-Type':'application/json'},...opts});const d=await r.json();if(!r.ok)throw Error(d.error||'Request failed');return d};
+const id=()=>$('#account-id').value.trim();
+$('#account-form').onsubmit=async e=>{e.preventDefault();try{const d=await call('/api/accounts',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(e.target)))});$('#account-id').value=d.account_id;$('#account-result').textContent=JSON.stringify(d,null,2)}catch(x){$('#account-result').textContent=x.message}};
+$('#onboard').onclick=async()=>{try{const d=await call('/api/accounts/'+encodeURIComponent(id())+'/onboarding-link',{method:'POST'});location.href=d.url}catch(x){$('#status-result').textContent=x.message}};
+$('#status').onclick=async()=>{try{const d=await call('/api/accounts/'+encodeURIComponent(id())+'/status');$('#status-result').textContent=JSON.stringify(d,null,2);$('#store-link').href='/storefront.html?accountId='+encodeURIComponent(id())}catch(x){$('#status-result').textContent=x.message}};
+$('#product-form').onsubmit=async e=>{e.preventDefault();try{const d=await call('/api/accounts/'+encodeURIComponent(id())+'/products',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(e.target)))});$('#product-result').textContent=JSON.stringify(d.product,null,2)}catch(x){$('#product-result').textContent=x.message}};
+</script></body></html>
