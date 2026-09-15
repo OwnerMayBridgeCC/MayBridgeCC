@@ -1,0 +1,46 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "stripe-connect-sample/server.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "thank-you.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "*.png",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "stripe-connect-sample/public/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api(?:/.*)?",
+      "dest": "/stripe-connect-sample/server.js"
+    },
+    {
+      "src": "/webhooks/stripe",
+      "dest": "/stripe-connect-sample/server.js"
+    },
+    {
+      "src": "/portal",
+      "dest": "/stripe-connect-sample/public/index.html"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/",
+      "dest": "/index.html"
+    }
+  ]
+}
