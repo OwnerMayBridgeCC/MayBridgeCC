@@ -12,7 +12,7 @@ import { processPaymentEvent, validateMembershipPrice } from "./lib/payments.js"
 import { requireRecoveryEmail, sendRecoveryEmail } from "./lib/email.js";
 import { SERVICE_TYPES, validateProfile, isAvailable, activeMembership } from "./lib/marketplace.js";
 
-const app=express(), port=Number(process.env.PORT||4242), baseUrl=(process.env.BASE_URL||`http://localhost:${port}`).replace(/\/$/,"");
+const app=express(), port=Number(process.env.PORT||4242), baseUrl=(process.env.BASE_URL||(process.env.VERCEL?"https://www.maybridgecarecollective.com":`http://localhost:${port}`)).replace(/\/$/,"");
 const stripe=process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 const integrationTag=id=>"maybridge_"+Array.from(createHash("sha256").update(id).digest().subarray(0,8),b=>String.fromCharCode(97+b%26)).join("");
