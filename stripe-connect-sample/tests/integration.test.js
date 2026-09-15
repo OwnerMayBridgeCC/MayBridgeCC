@@ -64,6 +64,23 @@ test("real PostgreSQL engine: ownership, booking lifecycle, overlap and webhook 
   assert.equal((await api("/api/requests","POST",requestBody,other.cookie)).status,404);
   const request=await api("/api/requests","POST",requestBody,customer.cookie);
   assert.equal(request.status,201);
+  assert.equal((await api("/api/requests/"+request.data.request.id+"/matches","GET",undefined,customer.cookie)).status,402);
+  await query("INSERT INTO memberships(customer_id,interval,status,current_period_end) VALUES($1,'monthly','active',now()+interval '1 month')",[customer.data.user.id]);
+  process.env.SERVICE_HOURLY_RATES_JSON='{"companion":4000}';
+  const profileBody={bio:"Synthetic provider",experience_years:3,service_zips:["10001"],service_types:["companion"],qualifications:[],
+    availability:{windows:[{starts_at:requestBody.starts_at,ends_at:new Date(+new Date(requestBody.starts_at)+7200000).toISOString()}]}};
+  assert.equal((await api("/api/provider/profile","PUT",profileBody,provider.cookie)).status,200);
+  assert.equal((await api("/api/provider/profile","PUT",profileBody,customer.cookie)).status,403);
+  await query("UPDATE provider_profiles SET verification_status='verified' WHERE user_id=$1",[provider.data.user.id]);
+  const matches=await api("/api/requests/"+request.data.request.id+"/matches","GET",undefined,customer.cookie);
+  assert.equal(matches.status,200);
+  assert.equal(matches.data.matches.length,1);
+  assert.equal(matches.data.amount_cents,4000);
+  assert.equal(matches.data.matches[0].completed_services,0);
+  assert.equal((await api("/api/requests/"+request.data.request.id+"/matches","GET",undefined,other.cookie)).status,402);
+  const nursing=await api("/api/requests","POST",{...requestBody,service_type:"nursing",clinical:false},customer.cookie);
+  assert.equal(nursing.data.request.clinical,true);
+  assert.equal((await api("/api/requests/"+nursing.data.request.id+"/matches","GET",undefined,customer.cookie)).status,409);
   assert.equal((await api("/api/requests/"+request.data.request.id+"/select","POST",{provider_id:provider.data.user.id,amount_cents:1},customer.cookie)).status,400);
   // Seed a synthetic paid booking to exercise only authorized state transitions.
   const b=(await query("INSERT INTO bookings(request_id,customer_id,provider_id,starts_at,ends_at,amount_cents,commission_cents,stripe_checkout_session_id) VALUES($1,$2,$3,now()-interval '2 hours',now()-interval '1 hour',4000,500,'cs_test') RETURNING *",[request.data.request.id,customer.data.user.id,provider.data.user.id])).rows[0];
@@ -90,7 +107,7 @@ test("real PostgreSQL engine: ownership, booking lifecycle, overlap and webhook 
   await assert.rejects(query("INSERT INTO bookings(request_id,customer_id,provider_id,starts_at,ends_at,amount_cents,commission_cents) VALUES($1,$2,$3,now()-interval '90 minutes',now()-interval '30 minutes',4000,500)",[rq2.data.request.id,customer.data.user.id,provider.data.user.id]),e=>e.code==="23P01");
   // Provider edits must invalidate earlier qualification approval.
   await query("UPDATE provider_profiles SET verification_status='verified' WHERE user_id=$1",[provider.data.user.id]);
-  await api("/api/provider/profile","PUT",{service_types:["nursing"],qualifications:["licensed"]},provider.cookie);
+  await api("/api/provider/profile","PUT",{service_types:["nursing"],qualifications:["licensed"],experience_years:0},provider.cookie);
   assert.equal((await query("SELECT verification_status FROM provider_profiles WHERE user_id=$1",[provider.data.user.id])).rows[0].verification_status,"pending");
   // Subscription creation provisions membership; stale event uses current Stripe status.
   await query("UPDATE users SET stripe_customer_id='cus_test' WHERE id=$1",[customer.data.user.id]);
@@ -102,4 +119,5 @@ test("real PostgreSQL engine: ownership, booking lifecycle, overlap and webhook 
   sub.status="canceled";
   await processPaymentEvent(adapter,stripe,{...subEvent,id:"evt_stale"},{STRIPE_MONTHLY_PRICE_ID:"price_month"});
   assert.equal((await query("SELECT status FROM memberships WHERE customer_id=$1",[customer.data.user.id])).rows[0].status,"canceled");
+  assert.equal((await api("/api/requests/"+request.data.request.id+"/matches","GET",undefined,customer.cookie)).status,402);
 });

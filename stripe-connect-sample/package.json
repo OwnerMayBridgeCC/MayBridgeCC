@@ -9,7 +9,7 @@
     "dev": "node --watch server.js",
     "migrate": "node scripts/migrate.js",
     "test": "node --test",
-    "check": "node --check server.js && node --check lib/auth.js && node --check lib/pricing.js"
+    "check": "node --check server.js && node --check lib/auth.js && node --check lib/pricing.js && node --check lib/payments.js && node --check lib/email.js && node --check lib/marketplace.js && node --check public/portal.js"
   },
   "engines": {
     "node": ">=20"
@@ -21,6 +21,7 @@
     "stripe": "^22.1.1"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.8"
+    "@electric-sql/pglite": "^0.5.8",
+    "jsdom": "^30.0.1"
   }
 }

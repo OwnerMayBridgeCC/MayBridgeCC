@@ -1,6 +1,6 @@
 # MayBridge implementation status
 
-Updated: 2026-09-14
+Updated: 2026-09-15
 
 ## Release state
 
@@ -26,12 +26,18 @@ STRIPE_SECRET_KEY, or RESEND_API_KEY. No production migration or payment was run
 - Added an optional Resend recovery adapter. No token is returned in response
   headers; missing email setup returns unavailable instead of claiming a queue.
 - Added portal reset, membership checkout/manage, and service-state controls.
+- Added customer care-recipient, request, match/selection, provider detail/review,
+  and service-review forms, plus provider profile and availability editing.
+- Matching and booking require an active membership with a future paid period.
+- Matching respects provider availability windows and excludes disabled accounts.
+- Clinical requests are retained for review but cannot automatically match/book
+  until jurisdiction-specific credential routing is implemented.
 - Rendered notification text without HTML injection and surfaced API failures.
 - Provider qualification/service changes require renewed verification.
 
 ## Verification
 
-- Seven automated tests pass, including an integration test using PGlite's local
+- Nine automated tests pass, including an integration test using PGlite's local
   PostgreSQL engine with pgcrypto and btree_gist.
 - Tests exercise both migrations, HTTP authentication/ownership, attempted
   customer price tampering, paid booking start/completion/review, overlapping
@@ -39,17 +45,19 @@ STRIPE_SECRET_KEY, or RESEND_API_KEY. No production migration or payment was run
 - Stripe and email responses are mocked; no real payment or email was sent.
 - JavaScript syntax checks pass. npm audit found zero known vulnerabilities.
 - Production PostgreSQL, real Stripe events, email deliverability, browser
-  rendering, Vercel routing and the live domain remain unverified.
+  rendering, Vercel routing and the live domain remain unverified. Chrome
+  installation failed with a certificate error; the alternate browser download
+  timed out. DOM tests are not a substitute for a real browser pass.
 
 ## Remaining implementation and launch work
 
-- Complete customer request/match/selection and provider profile/availability
-  screens; current APIs alone do not make these complete user journeys.
+- Run real-browser and test-mode payment verification for the newly connected
+  customer and provider screens. Local DOM tests cover rendering and payloads.
 - Implement Connect account onboarding and payout-status synchronization.
 - Implement approved vendor-hosted verification links, credential expiry and
   jurisdiction-specific licensed-provider routing. Existing qualification
   fields are not a complete credential verification system.
-- Complete membership entitlement enforcement, add-on catalog/checkout and
+- Complete add-on catalog/checkout and
   cancellation/refund/reconciliation operations. Expired service checkout
   currently requires support reconciliation.
 - Add persistent authentication abuse controls and email verification.
