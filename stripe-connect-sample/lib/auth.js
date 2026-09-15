@@ -12,6 +12,7 @@ export function hashPassword(password, salt = crypto.randomBytes(16).toString("h
 }
 
 export function verifyPassword(password, stored) {
+  if (typeof password !== "string" || password.length > 200) return false;
   const [algorithm, salt, expected] = String(stored).split(":");
   if (algorithm !== "scrypt" || !salt || !expected) return false;
   const actual = crypto.scryptSync(password, salt, 64, SCRYPT_OPTIONS);
@@ -22,7 +23,13 @@ export function verifyPassword(password, stored) {
 export const randomToken = () => crypto.randomBytes(32).toString("base64url");
 export const tokenHash = token => crypto.createHash("sha256").update(token).digest("hex");
 export function parseCookies(header = "") {
-  return Object.fromEntries(header.split(";").map(v => v.trim().split("=")).filter(v => v.length === 2).map(([k,v]) => [k, decodeURIComponent(v)]));
+  const result = {};
+  for (const part of header.split(";")) {
+    const at = part.indexOf("=");
+    if (at < 1) continue;
+    try { result[part.slice(0,at).trim()] = decodeURIComponent(part.slice(at+1)); } catch { /* Ignore malformed cookie. */ }
+  }
+  return result;
 }
 export function sessionCookie(token, maxAge = 60 * 60 * 24 * 14) {
   return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${process.env.NODE_ENV === "production" ? "; Secure" : ""}`;

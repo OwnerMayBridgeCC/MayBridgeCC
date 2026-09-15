@@ -2,23 +2,63 @@
 
 Updated: 2026-09-14
 
-## Completed in this release
+## Release state
 
-- Confirmed this checkout is the branded `OwnerMayBridgeCC/MayBridgeCC` history at `e0a4ce2` and contains the existing `stripe-connect-sample`. Remote `main` also resolved to `e0a4ce2` before work began.
-- Added production-capable PostgreSQL schema/migrations for users, server sessions, password recovery, private care recipients, provider profiles, requests, bookings, memberships, reviews, notifications/email delivery attempts, and idempotent Stripe events.
-- Added customer/provider signup and login, role authorization, ownership enforcement, recovery/reset, profile/request APIs, qualification-aware matching, collision protection, provider/customer completion confirmation, eligible reviews, and dashboard history.
-- Added signed Stripe webhook processing, server-derived membership pricing ($20 monthly / $200 annual), configurable commission calculation, Connect destination checkout, and duplicate-payment defenses.
-- Replaced the unauthenticated Stripe prototype screen with a responsive branded account portal with honest empty/error states.
+PR #2 is an unfinished marketplace foundation, not a launch-ready service.
+The GitHub integration can publish updates. Vercel reported a ready preview
+for the original PR, but this does not verify that the Express API is deployed.
+The connected Vercel tool returned 403 for the existing project and no accessible
+teams. This execution environment has no DATABASE_URL, VERCEL_TOKEN,
+STRIPE_SECRET_KEY, or RESEND_API_KEY. No production migration or payment was run.
 
-## Verification performed
+## Fixes added after review
 
-- `npm test`
-- `npm run check`
-- `npm audit`
-- Static review of the migration, endpoint authorization, webhook ordering, and pricing invariant.
+- Removed customer-supplied service amounts. Rates must come from the trusted
+  SERVICE_HOURLY_RATES_JSON configuration; blank commission does not become 0%.
+- Validated Stripe membership Price currency, amount, recurrence, and active
+  status against $20/month or $200/year.
+- Added durable membership checkout attempts, metadata association, membership
+  upsert from signed events, and latest-subscription reconciliation.
+- Required paid status, currency, amount, and matching Checkout Session before
+  booking fulfillment. Duplicate events cannot rewind completed bookings.
+- Added a provider-only start action so paid bookings can progress to completion.
+- Added a PostgreSQL exclusion constraint to reject partial time overlaps.
+- Added an optional Resend recovery adapter. No token is returned in response
+  headers; missing email setup returns unavailable instead of claiming a queue.
+- Added portal reset, membership checkout/manage, and service-state controls.
+- Rendered notification text without HTML injection and surfaced API failures.
+- Provider qualification/service changes require renewed verification.
 
-## Deployment and blockers
+## Verification
 
-Not deployed. This environment has no GitHub CLI authentication, Vercel CLI/token, `DATABASE_URL`, Stripe test secrets, webhook secret, or Stripe Price IDs. The production commission rate is undocumented, so service charges deliberately return unavailable until `SERVICE_COMMISSION_BPS` is supplied. Add-on prices are also undocumented and no add-on charge route was activated.
+- Seven automated tests pass, including an integration test using PGlite's local
+  PostgreSQL engine with pgcrypto and btree_gist.
+- Tests exercise both migrations, HTTP authentication/ownership, attempted
+  customer price tampering, paid booking start/completion/review, overlapping
+  bookings, and membership webhook creation/cancellation.
+- Stripe and email responses are mocked; no real payment or email was sent.
+- JavaScript syntax checks pass. npm audit found zero known vulnerabilities.
+- Production PostgreSQL, real Stripe events, email deliverability, browser
+  rendering, Vercel routing and the live domain remain unverified.
 
-Required owner actions: provision PostgreSQL and run `npm run migrate`; set the environment variables in the existing Vercel project; provide approved commission/add-on pricing; configure Stripe test products/webhook endpoint; select a credential/identity verification vendor and credentials; configure an email delivery provider. Then run full integration tests with synthetic users before enabling live mode.
+## Remaining implementation and launch work
+
+- Complete customer request/match/selection and provider profile/availability
+  screens; current APIs alone do not make these complete user journeys.
+- Implement Connect account onboarding and payout-status synchronization.
+- Implement approved vendor-hosted verification links, credential expiry and
+  jurisdiction-specific licensed-provider routing. Existing qualification
+  fields are not a complete credential verification system.
+- Complete membership entitlement enforcement, add-on catalog/checkout and
+  cancellation/refund/reconciliation operations. Expired service checkout
+  currently requires support reconciliation.
+- Add persistent authentication abuse controls and email verification.
+- Configure the Express API on the actual hosting project; the repository root
+  public website being served successfully does not prove API routing works.
+- Supply approved commission and service/add-on pricing, database, Stripe test
+  keys/Prices/webhook, and email credentials. Validate tax configuration before
+  enabling live charges; automatic tax has not been enabled.
+- Run complete test-mode customer/provider journeys before enabling real users.
+
+Do not merge or describe this as a completed business launch solely because
+the preview build or local tests passed.

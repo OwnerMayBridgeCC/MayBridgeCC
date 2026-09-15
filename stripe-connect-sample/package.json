@@ -11,11 +11,16 @@
     "test": "node --test",
     "check": "node --check server.js && node --check lib/auth.js && node --check lib/pricing.js"
   },
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
     "pg": "^8.13.3",
     "stripe": "^22.1.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8"
   }
 }
