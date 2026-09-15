@@ -200,3 +200,4 @@ app.use(express.static(path.join(path.dirname(fileURLToPath(import.meta.url)),"p
 app.use((err,req,res,next)=>{if(res.headersSent)return next(err);const status=err.status||(["23505","23P01"].includes(err.code)?409:500);if(status>=500)console.error(err.message);res.status(status).json({error:status>=500?"The service is temporarily unavailable.":err.message})});
 if(process.env.NODE_ENV!=="test" && !process.env.VERCEL)app.listen(port,()=>console.log(`MayBridge marketplace listening at ${baseUrl}`));
 export { app };
+export default app;
