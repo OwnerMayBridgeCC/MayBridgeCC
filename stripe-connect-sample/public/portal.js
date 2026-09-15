@@ -59,8 +59,10 @@ async function load() {
     if (!data.notifications.length) $("#notifications").textContent = "You have no notifications.";
     $("#customer-tools").classList.toggle("hidden",data.user.role!=="customer");
     $("#provider-tools").classList.toggle("hidden",data.user.role!=="provider");
+    $("#admin-tools").classList.toggle("hidden",data.user.role!=="admin");
     if(data.user.role==="customer") await loadCustomer();
     if(data.user.role==="provider") await loadProvider();
+    if(data.user.role==="admin") await loadAdmin();
   } catch (error) { if (error.status !== 401) msg(error.message); }
 }
 for (const id of ["login", "signup", "recovery"]) {
@@ -69,7 +71,11 @@ for (const id of ["login", "signup", "recovery"]) {
     action(event.submitter, async () => {
       const result = await post("/api/auth/" + id, Object.fromEntries(new FormData(event.target)));
       if (id === "recovery") msg(result.message);
-      else location.reload();
+      else if(id==="signup" && event.target.elements.role.value==="customer"){
+        const plan=new FormData(event.target).get("plan")||"monthly";
+        try{const checkout=await post("/api/memberships/checkout",{interval:plan});location.assign(checkout.checkout_url);}
+        catch(error){msg("Your account was created. "+error.message);await load();}
+      } else location.reload();
     });
   };
 }
@@ -104,7 +110,7 @@ function button(text,fn){const b=document.createElement("button");b.type="button
 async function loadCustomer(){
   const [recipients,requests,billing]=await Promise.all([api("/api/care-recipients"),api("/api/requests"),api("/api/memberships")]);
   $("#membership-status").textContent=billing.active ? "Your membership is active." : "No active membership. You can save requests; membership is required to view matches and book.";
-  $("#recipients").replaceChildren(...recipients.care_recipients.map(r=>paragraph(r.preferred_name+(r.relationship?" · "+r.relationship:""))));
+  $("#recipients").replaceChildren(...recipients.care_recipients.map(careCard));
   if(!recipients.care_recipients.length)$("#recipients").textContent="Add yourself or a loved one to get started.";
   $("#recipient-select").replaceChildren(...recipients.care_recipients.map(r=>{const option=document.createElement("option");option.value=r.id;option.textContent=r.preferred_name;return option;}));
   $("#requests").replaceChildren(...requests.requests.map(request=>{
@@ -124,10 +130,11 @@ async function loadMatches(request){
   for(const provider of data.matches){
     const card=document.createElement("article");card.className="card";
     const title=document.createElement("h4");title.textContent=provider.display_name;
-    card.append(title,paragraph(provider.bio),paragraph((provider.experience_years??0)+" years of experience · "+provider.completed_services+" completed MayBridge services"),
+    card.append(title,paragraph(provider.headline||"Care professional"),paragraph(provider.bio),paragraph((provider.experience_years??0)+" years of experience · "+provider.completed_services+" completed MayBridge services"),
       paragraph(provider.review_count?provider.rating+"/5 from "+provider.review_count+" reviews":"No MayBridge reviews yet"),
-      paragraph("Verification: "+provider.verification_status),paragraph("Qualifications: "+(provider.qualifications.join(", ")||"None listed")),
+      paragraph("Distance: "+(provider.distance_miles===null?"Service-area match":provider.distance_miles+" miles")+" · Background check: clear · MayBridge approved"),paragraph("Qualifications: "+(provider.qualifications.join(", ")||"None listed")),paragraph("Certifications: "+((provider.certifications||[]).join(", ")||"None listed")+" · Languages: "+((provider.languages||[]).join(", ")||"Not listed")),
       paragraph(data.amount_cents===null?"Service pricing is not yet available.":"Service total: "+money(data.amount_cents)));
+    const resume=document.createElement("details"),summary=document.createElement("summary"),resumeBody=document.createElement("div");summary.textContent="View professional résumé";resume.append(summary,resumeBody);for(const [label,items] of [["Work history",provider.work_history],["Education",provider.education]]){const h=document.createElement("h5");h.textContent=label;resumeBody.append(h,...(items||[]).map(item=>paragraph([item.title,item.organization,item.detail].filter(Boolean).join(" · "))));}card.append(resume);
     const reviews=document.createElement("div");
     card.append(button("Read reviews",async()=>{const d=await api("/api/providers/"+provider.id+"/reviews");reviews.replaceChildren(...d.reviews.map(r=>paragraph(r.rating+"/5 · "+r.body)));if(!d.reviews.length)reviews.textContent="No reviews yet."; }),reviews);
     const select=button("Select provider and continue to payment",async()=>{
@@ -152,10 +159,12 @@ function renderWindows(){
 }
 async function loadProvider(){
   const {profile}=await api("/api/provider/profile");
-  $("#provider-status").textContent="Verification: "+profile.verification_status+" · Payment setup: "+(profile.payments_enabled?"ready":"incomplete");
+  $("#provider-status").textContent="MayBridge review: "+profile.admin_approval_status+" · Background check: "+profile.background_check_status+" · Credentials: "+profile.verification_status+" · Payments: "+(profile.payments_enabled?"ready":"incomplete");
   const form=$("#provider-form");
-  for(const key of ["bio","experience_years"])form.elements[key].value=profile[key]??"";
-  for(const key of ["service_zips","qualifications"])form.elements[key].value=profile[key].join(", ");
+  for(const key of ["headline","bio","experience_years","base_zip","service_radius_miles"])form.elements[key].value=profile[key]??"";
+  for(const key of ["service_zips","qualifications","certifications","languages"])form.elements[key].value=(profile[key]||[]).join(", ");
+  const lines=items=>(items||[]).map(item=>[item.title,item.organization,item.detail].filter(Boolean).join(" | ")).join("\n");
+  form.elements.work_history_text.value=lines(profile.work_history);form.elements.education_text.value=lines(profile.education);
   for(const option of form.elements.service_types.options)option.selected=profile.service_types.includes(option.value);
   windows=profile.availability?.windows||[];renderWindows();
 }
@@ -167,9 +176,57 @@ $("#add-window").onclick=()=>{try{
 $("#provider-form").onsubmit=e=>{e.preventDefault();action(e.submitter,async()=>{
   const data=new FormData(e.target),body=Object.fromEntries(data);
   body.experience_years=Number(body.experience_years);body.service_types=data.getAll("service_types");
-  for(const key of ["service_zips","qualifications"])body[key]=body[key].split(",").map(s=>s.trim()).filter(Boolean);
+  body.service_radius_miles=Number(body.service_radius_miles);
+  for(const key of ["service_zips","qualifications","certifications","languages"])body[key]=body[key].split(",").map(s=>s.trim()).filter(Boolean);
+  const entries=text=>String(text||"").split("\n").map(line=>{const [title="",organization="",...detail]=line.split("|").map(value=>value.trim());return {title,organization,detail:detail.join(" | ")};}).filter(item=>item.title||item.organization||item.detail);
+  body.work_history=entries(body.work_history_text);body.education=entries(body.education_text);delete body.work_history_text;delete body.education_text;
   body.availability={windows};
   await api("/api/provider/profile",{method:"PUT",body:JSON.stringify(body)});await loadProvider();msg("Your profile and availability have been saved.");
 });};
 $("#verify-provider").onclick=e=>action(e.currentTarget,async()=>{const d=await api("/api/provider/verification");location.assign(d.url);});
+$("#signup-role").onchange=e=>$("#signup-plans").classList.toggle("hidden",e.target.value!=="customer");
+const query=new URLSearchParams(location.search);if(query.get("signup")==="provider"){$("#signup-role").value="provider";$("#signup-plans").classList.add("hidden");}if(query.get("plan")==="annual")document.querySelector('[name="plan"][value="annual"]').checked=true;
+async function loadAdmin(){
+  const readiness=await api("/api/admin/launch-status");$("#launch-status").textContent="Approved providers with current screening: "+readiness.approved_providers+". Missing configuration: "+(Object.entries(readiness.configuration).filter(([,ready])=>!ready).map(([key])=>key).join(", ")||"None")+". Payout enrollment: "+(readiness.connect_enabled?"enabled":"not configured");
+  const {providers}=await api("/api/admin/providers"),target=$("#admin-providers");target.replaceChildren();
+  for(const provider of providers){const card=document.createElement("article");card.className="admin-provider";const title=document.createElement("h4");title.textContent=provider.display_name+" · "+provider.email;card.append(title,paragraph(provider.headline||"No headline"),paragraph((provider.experience_years||0)+" years · "+(provider.base_zip||"No ZIP")+" · "+provider.service_radius_miles+" miles"),paragraph("Services: "+provider.service_types.join(", ")),paragraph("Credentials: "+provider.qualifications.join(", ")));
+    const form=document.createElement("form");form.innerHTML='<label>MayBridge approval<select name="admin_approval_status"><option>pending</option><option>approved</option><option>rejected</option><option>suspended</option></select></label><label>Background check<select name="background_check_status"><option>not_started</option><option>pending</option><option>clear</option><option>consider</option><option>failed</option><option>expired</option></select></label><label>Credential verification<select name="verification_status"><option>not_started</option><option>pending</option><option>verified</option><option>rejected</option><option>expired</option></select></label><label>Credential expiry or next review<input name="credentials_expires_at" type="date"></label><label>Background screening next review<input name="background_expires_at" type="date"></label><label>Screening reference<input name="background_check_reference" maxlength="250"></label><button>Save review</button>';
+    for(const key of ["admin_approval_status","background_check_status","verification_status"])form.elements[key].value=provider[key];form.elements.background_check_reference.value=provider.background_check_reference||"";for(const key of ["credentials_expires_at","background_expires_at"])form.elements[key].value=provider[key]?.slice(0,10)||"";form.onsubmit=e=>{e.preventDefault();action(e.submitter,async()=>{await api("/api/admin/providers/"+provider.id+"/review",{method:"PUT",body:JSON.stringify(Object.fromEntries(new FormData(form)))});await loadAdmin();msg("Provider review saved.");});};card.append(resumeDetails(provider),form);target.append(card);}
+  if(!providers.length)target.textContent="No provider applications yet.";
+}
+
+function careCard(recipient){
+  const card=document.createElement("details"),summary=document.createElement("summary"),form=document.createElement("form");
+  summary.textContent=recipient.preferred_name+(recipient.relationship?" · "+recipient.relationship:"");
+  for(const [key,label] of [["preferred_name","Preferred name"],["relationship","Relationship"],["notes","Private care preferences"]]){
+    const l=document.createElement("label"),field=document.createElement(key==="notes"?"textarea":"input");l.textContent=label;field.name=key;field.value=recipient[key]||"";field.maxLength=key==="notes"?4000:key==="preferred_name"?150:100;if(key==="preferred_name")field.required=true;l.append(field);form.append(l);
+  }
+  const save=document.createElement("button");save.textContent="Save care preferences";form.append(save);
+  form.onsubmit=e=>{e.preventDefault();action(save,async()=>{await api("/api/care-recipients/"+recipient.id,{method:"PUT",body:JSON.stringify(Object.fromEntries(new FormData(form)))});await loadCustomer();msg("Care preferences saved.");});};card.append(summary,form);return card;
+}
+function resumeDetails(provider){
+  const details=document.createElement("details"),summary=document.createElement("summary");summary.textContent="View professional résumé";details.append(summary,paragraph(provider.bio||""));
+  for(const [label,items] of [["Work history",provider.work_history],["Education",provider.education]]){
+    const h=document.createElement("h4");h.textContent=label;details.append(h,...(items||[]).map(item=>paragraph([item.title,item.organization,item.detail].filter(Boolean).join(" · "))));
+    if(!items?.length)details.append(paragraph("Not listed."));
+  }
+  return details;
+}
+$("#directory-form").onsubmit=e=>{e.preventDefault();action(e.submitter,async()=>{
+  const params=new URLSearchParams(new FormData(e.target)),data=await api("/api/providers?"+params),target=$("#directory-results");target.replaceChildren();
+  for(const provider of data.providers){const card=document.createElement("article"),h=document.createElement("h4");card.className="card";h.textContent=provider.display_name;
+    card.append(h,paragraph(provider.headline||"Care professional"),paragraph(provider.distance_miles+" miles · "+(provider.experience_years||0)+" years of experience"),paragraph("MayBridge approved · Current credential and background checks"),paragraph((provider.service_types||[]).map(x=>services[x]||x).join(", ")),paragraph(provider.completed_services+" completed MayBridge services · "+(provider.review_count?provider.rating+"/5 from "+provider.review_count+" reviews":"No reviews yet")),paragraph("Qualifications: "+(provider.qualifications.join(", ")||"Not listed")),paragraph("Languages: "+(provider.languages.join(", ")||"Not listed")),resumeDetails(provider));
+    const reviews=document.createElement("div");card.append(button("Read reviews",async()=>{const result=await api("/api/providers/"+provider.id+"/reviews");reviews.replaceChildren(...result.reviews.map(r=>paragraph(r.rating+"/5 · "+r.body)));if(!result.reviews.length)reviews.textContent="No reviews yet.";}),reviews,button("Create a service request",async()=>{$("#request-form").elements.zip.value=params.get("zip");if(params.get("service"))$("#request-form").elements.service_type.value=params.get("service");$("#request-form").scrollIntoView({behavior:"smooth"});msg("Choose the care recipient and time. MayBridge will check provider availability for your request.");}));target.append(card);
+  }
+  if(!data.providers.length)target.append(paragraph("No approved providers currently match this search. Try a wider radius or a different service."));
+  if(data.providers.length===data.limit)target.append(paragraph("Showing the nearest 100 providers. Narrow your search for more specific results."));
+});};
+$("#connect-provider").onclick=e=>action(e.currentTarget,async()=>{const result=await post("/api/provider/connect/onboarding");location.assign(result.url);});
+$("#connect-status").onclick=e=>action(e.currentTarget,async()=>{const result=await post("/api/provider/connect/status");await loadProvider();msg(result.ready?"Payout setup is ready.":"Payout setup needs attention. Continue enrollment or open your Stripe dashboard.");});
+$("#connect-dashboard").onclick=e=>action(e.currentTarget,async()=>{const result=await post("/api/provider/connect/dashboard");location.assign(result.url);});
+if(query.get("connect"))msg("Refresh payout status to check your setup, or continue enrollment if your link expired.");
+if(query.get("membership")==="success")msg("Your checkout has returned. Membership access activates after Stripe confirms your subscription. Refresh this page if confirmation is still processing.");
+if(query.get("membership")==="canceled")msg("Checkout was canceled. Your account is saved; choose a plan when you are ready.");
 load();
+
+api("/api/readiness").then(status=>{if(!status.accounts){msg("Online account enrollment is temporarily unavailable while setup is completed. Please check back soon.");document.querySelectorAll("#auth button").forEach(b=>b.disabled=true);}else if(!status.checkout_configured){msg("Account access is available. Membership checkout is not available yet; no payment will be collected.");}}).catch(()=>{});

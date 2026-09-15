@@ -39,7 +39,7 @@ test("real PostgreSQL engine: ownership, booking lifecycle, overlap and webhook 
   const pg=new PGlite({extensions:{pgcrypto,btree_gist}});
   const query=async(sql,args)=>{const r=await pg.query(sql,args);return {...r,rowCount:r.affectedRows || r.rows.length};};
   const adapter={query,connect:async()=>({...adapter,release(){}})};
-  for(const name of ["001_marketplace.sql","002_checkout_safety.sql"]){
+  for(const name of ["001_marketplace.sql","002_checkout_safety.sql","003_provider_profiles.sql","004_launch_controls.sql"]){
     await pg.exec(await fs.readFile(new URL("../migrations/"+name,import.meta.url),"utf8"));
   }
   const {setTestDatabase}=await import("../lib/db.js");
@@ -71,12 +71,41 @@ test("real PostgreSQL engine: ownership, booking lifecycle, overlap and webhook 
     availability:{windows:[{starts_at:requestBody.starts_at,ends_at:new Date(+new Date(requestBody.starts_at)+7200000).toISOString()}]}};
   assert.equal((await api("/api/provider/profile","PUT",profileBody,provider.cookie)).status,200);
   assert.equal((await api("/api/provider/profile","PUT",profileBody,customer.cookie)).status,403);
-  await query("UPDATE provider_profiles SET verification_status='verified' WHERE user_id=$1",[provider.data.user.id]);
+  await query("UPDATE provider_profiles SET verification_status='verified',background_check_status='clear',admin_approval_status='approved',credentials_expires_at=now()+interval '1 year',background_expires_at=now()+interval '1 year' WHERE user_id=$1",[provider.data.user.id]);
   const matches=await api("/api/requests/"+request.data.request.id+"/matches","GET",undefined,customer.cookie);
   assert.equal(matches.status,200);
   assert.equal(matches.data.matches.length,1);
   assert.equal(matches.data.amount_cents,4000);
   assert.equal(matches.data.matches[0].completed_services,0);
+  // Paid member discovery is private and only exposes current approved profiles.
+  await query("UPDATE provider_profiles SET base_zip='10001' WHERE user_id=$1",[provider.data.user.id]);
+  assert.equal((await api("/api/providers?zip=10001&radius=25","GET",undefined,other.cookie)).status,402);
+  assert.equal((await api("/api/providers?zip=10001&radius=25","GET",undefined,customer.cookie)).data.providers.length,1);
+  assert.equal((await api("/api/providers?zip=90210&radius=10","GET",undefined,customer.cookie)).data.providers.length,0);
+  await query("UPDATE provider_profiles SET background_expires_at=now()-interval '1 day' WHERE user_id=$1",[provider.data.user.id]);
+  assert.equal((await api("/api/providers?zip=10001&radius=25","GET",undefined,customer.cookie)).data.providers.length,0);
+  assert.equal((await api("/api/requests/"+request.data.request.id+"/matches","GET",undefined,customer.cookie)).data.matches.length,0);
+  await query("UPDATE provider_profiles SET background_expires_at=now()+interval '1 year' WHERE user_id=$1",[provider.data.user.id]);
+  const careId=recipient.data.care_recipient.id;
+  assert.equal((await api("/api/care-recipients/"+careId,"PUT",{preferred_name:"Synthetic",notes:"Private routine"},other.cookie)).status,404);
+  assert.equal((await api("/api/care-recipients/"+careId,"PUT",{preferred_name:"Synthetic",notes:"Private routine"},customer.cookie)).status,200);
+  assert.equal((await api("/api/care-recipients","GET",undefined,customer.cookie)).data.care_recipients[0].notes,"Private routine");
+  assert.equal((await api("/api/care-recipients","GET",undefined,other.cookie)).data.care_recipients.length,0);
+  assert.equal((await api("/api/admin/providers","GET",undefined,provider.cookie)).status,403);
+  const admin=await signup("owner-test","customer");await query("UPDATE users SET role='admin' WHERE id=$1",[admin.data.user.id]);
+  const review={admin_approval_status:"approved",background_check_status:"clear",verification_status:"verified",background_check_reference:"synthetic-report",credentials_expires_at:new Date(Date.now()+86400000).toISOString(),background_expires_at:new Date(Date.now()+86400000).toISOString()};
+  assert.equal((await api("/api/admin/providers/"+provider.data.user.id+"/review","PUT",{...review,background_check_reference:""},admin.cookie)).status,400);
+  assert.equal((await api("/api/admin/providers/"+provider.data.user.id+"/review","PUT",review,admin.cookie)).status,200);
+  assert.equal((await query("SELECT count(*)::integer AS count FROM provider_reviews_audit")).rows[0].count,1);
+  // Updating only availability does not withdraw an approved profile.
+  const saved=(await api("/api/provider/profile","GET",undefined,provider.cookie)).data.profile;
+  await api("/api/provider/profile","PUT",{...saved,availability:{windows:[]}},provider.cookie);
+  assert.equal((await api("/api/provider/profile","GET",undefined,provider.cookie)).data.profile.admin_approval_status,"approved");
+  await api("/api/provider/profile","PUT",saved,provider.cookie);
+  const portal=await fetch(origin+"/portal");assert.equal(portal.status,200);
+  assert.match(await portal.text(),/src="\/stripe-connect-sample\/public\/portal.js"/);
+  assert.equal((await fetch(origin+"/stripe-connect-sample/public/portal.js")).status,200);
+
   assert.equal((await api("/api/requests/"+request.data.request.id+"/matches","GET",undefined,other.cookie)).status,402);
   const nursing=await api("/api/requests","POST",{...requestBody,service_type:"nursing",clinical:false},customer.cookie);
   assert.equal(nursing.data.request.clinical,true);

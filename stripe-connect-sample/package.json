@@ -9,7 +9,8 @@
     "dev": "node --watch server.js",
     "migrate": "node scripts/migrate.js",
     "test": "node --test",
-    "check": "node --check server.js && node --check lib/auth.js && node --check lib/pricing.js && node --check lib/payments.js && node --check lib/email.js && node --check lib/marketplace.js && node --check public/portal.js"
+    "check": "node --check server.js && node --check lib/auth.js && node --check lib/pricing.js && node --check lib/payments.js && node --check lib/email.js && node --check lib/marketplace.js && node --check public/portal.js && node --check lib/launch.js && node --check lib/connect.js",
+    "owner": "node scripts/set-owner.js"
   },
   "engines": {
     "node": ">=20"
@@ -18,7 +19,8 @@
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
     "pg": "^8.13.3",
-    "stripe": "^22.1.1"
+    "stripe": "^22.1.1",
+    "zipcodes": "^8.0.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
