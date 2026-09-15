@@ -1,17 +1,27 @@
 {
-  "name": "maybridge-stripe-connect-sample",
+  "name": "maybridge-marketplace",
   "private": true,
-  "version": "1.0.0",
-  "description": "MayBridge Care Collective Stripe Connect sample",
+  "version": "2.0.0",
+  "description": "MayBridge Care Collective marketplace API and portals",
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "migrate": "node scripts/migrate.js",
+    "test": "node --test",
+    "check": "node --check server.js && node --check lib/auth.js && node --check lib/pricing.js && node --check lib/payments.js && node --check lib/email.js && node --check lib/marketplace.js && node --check public/portal.js"
   },
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
+    "pg": "^8.13.3",
     "stripe": "^22.1.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "jsdom": "^30.0.1"
   }
 }
