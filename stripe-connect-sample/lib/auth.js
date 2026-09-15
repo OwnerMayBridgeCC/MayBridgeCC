@@ -32,5 +32,5 @@ export function parseCookies(header = "") {
   return result;
 }
 export function sessionCookie(token, maxAge = 60 * 60 * 24 * 14) {
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${process.env.NODE_ENV === "production" ? "; Secure" : ""}`;
+  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${(process.env.NODE_ENV === "production" || process.env.VERCEL) ? "; Secure" : ""}`;
 }

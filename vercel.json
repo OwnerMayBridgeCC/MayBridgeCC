@@ -6,11 +6,11 @@
       "use": "@vercel/node"
     },
     {
-      "src": "index.html",
+      "src": "*.html",
       "use": "@vercel/static"
     },
     {
-      "src": "thank-you.html",
+      "src": "*.css",
       "use": "@vercel/static"
     },
     {
@@ -33,6 +33,10 @@
     },
     {
       "src": "/portal",
+      "dest": "/stripe-connect-sample/public/index.html"
+    },
+    {
+      "src": "/portal/",
       "dest": "/stripe-connect-sample/public/index.html"
     },
     {
